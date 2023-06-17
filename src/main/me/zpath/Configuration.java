@@ -189,6 +189,11 @@ public class Configuration {
         CONFIG.registerFunction(new FunctionMax());
         CONFIG.registerFunction(new FunctionSum());
         CONFIG.registerFunction(new FunctionEncode());
+        CONFIG.registerFunction(new FunctionNumber());
+        CONFIG.registerFunction(new FunctionString());
+        CONFIG.registerFunction(new FunctionFloor());
+        CONFIG.registerFunction(new FunctionCeil());
+        CONFIG.registerFunction(new FunctionRound());
         CONFIG.close();
     }
 

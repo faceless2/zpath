@@ -2,10 +2,10 @@ package me.zpath;
 
 import java.util.*;
 
-class FunctionCount implements Function {
+class FunctionNumber implements Function {
 
     public String getName() {
-        return "count";
+        return "number";
     }
 
     public boolean verify(List<Term> arguments) {
@@ -17,7 +17,7 @@ class FunctionCount implements Function {
     }
 
     public void eval(final List<Term> arguments, final Collection<Node> in, final Collection<Node> out, final Configuration config) {
-        int count = 0;
+        double max = Double.NaN;
         if (config.isDebug()) {
             config.debug(this + " " + arguments + " ctx=" + in);
         }
@@ -26,15 +26,14 @@ class FunctionCount implements Function {
             t.eval(in, nodes, config.debugIndent());
         }
         for (Node node : nodes) {
-            Iterator<Node> i = node.get("*");
-            if (i != null) {
-                while (i.hasNext()) {
-                    i.next();
-                    count++;
-                }
+            String s = node.stringValue();
+            if (s != null) {
+                try {
+                    double d = Double.parseDouble(s);
+                    out.add(Node.create(d));
+                } catch (Exception e) { }
             }
         }
-        out.add(Node.create(count));
     }
 
 }

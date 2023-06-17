@@ -28,4 +28,34 @@ class FunctionAxis extends Term implements Axis {
         function.eval(args, in, out, config);
     }
 
+    static class Dynamic implements Function {
+        final String name;
+        Function function;
+
+        Dynamic(String name) {
+            this.name = name;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public boolean verify(List<Term> arguments) {
+            return true; // never called
+        }
+
+        public void eval(List<Term> arguments, Collection<Node> in, Collection<Node> out, Configuration config) {
+            synchronized(this) {
+                if (function == null) {
+                    function = config.getFunction(name);
+                    if (function == null) {
+                        throw new IllegalStateException("No such function " + getName() + "()");
+                    }
+                }
+            }
+            function.eval(arguments, in, out, config);
+        }
+
+    }
+
 }
