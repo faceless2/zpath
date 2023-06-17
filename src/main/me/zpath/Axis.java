@@ -14,14 +14,17 @@ interface Axis {
         return new Axis() {
             @Override public void eval(final Collection<Node> in, final Collection<Node> out, final Configuration config) {
                 for (Node node : in) {
-                    Node n = node.get(name);
-                    if (n != null) {
-                        out.add(n);
-                        if (config.isDebug()) {
-                            config.debug("match: " + n);
+                    Iterator<Node> i = node.get(name);
+                    if (i != null && i.hasNext()) {
+                        while (i.hasNext()) {
+                            Node n = i.next();
+                            out.add(n);
+                            if (config.isDebug()) {
+                                config.debug("match: " + n);
+                            }
                         }
                     } else if (config.isDebug()) {
-                        config.debug("miss: " + n);
+                        config.debug("miss: " + node);
                     }
                 }
             }
@@ -57,14 +60,17 @@ interface Axis {
         return new Axis() {
             @Override public void eval(final Collection<Node> in, final Collection<Node> out, final Configuration config) {
                 for (Node node : in) {
-                    Node n = node.get(index);
-                    if (n != null) {
-                        out.add(n);
-                        if (config.isDebug()) {
-                            config.debug("match: " + n);
+                    Iterator<Node> i = node.get(index);
+                    if (i != null && i.hasNext()) {
+                        while (i.hasNext()) {
+                            Node n = i.next();
+                            out.add(n);
+                            if (config.isDebug()) {
+                                config.debug("match: " + n);
+                            }
                         }
-                    } else if (config.isDebug()) {
-                        config.debug("miss: " + n);
+                    } else {
+                        config.debug("miss: " + node);
                     }
                 }
             }
@@ -78,30 +84,6 @@ interface Axis {
     }
 
     /** @hidden */
-    static Axis ANYCHILD = new Axis() {
-        @Override public void eval(final Collection<Node> in, final Collection<Node> out, Configuration config) {
-            for (Node node : in) {
-                Iterator<Node> i = node.children();
-                if (i != null) {
-                    while (i.hasNext()) {
-                        Node n = i.next();
-                        out.add(n);
-                        if (config.isDebug()) {
-                            config.debug("match: " + n);
-                        }
-                    }
-                }
-            }
-        }
-        @Override public String toString() {
-            return "*";
-        }
-        @Override public void dump(Configuration config) {
-            config.debug("axis: any child");
-        }
-    };
-
-    /** @hidden */
     static Axis SELFORANYDESCENDENT = new Axis() {
         @Override public void eval(final Collection<Node> in, final Collection<Node> out, final Configuration config) {
             Stack<Node> stack = new Stack<Node>();
@@ -110,7 +92,7 @@ interface Axis {
                 stack.push(node);
                 while (!stack.isEmpty()) {
                     Node n = stack.pop();
-                    Iterator<Node> i = n.children();
+                    Iterator<Node> i = n.get("*");
                     if (i != null) { // Add to stack in reverse order
                         List<Node> temp = new ArrayList<Node>();
                         while (i.hasNext()) {

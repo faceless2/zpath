@@ -40,7 +40,7 @@ import java.util.*;
  *       return j == null ? null : new Proxy(proxy, null, -1);
  *     }
  *  
- *     public Node get(String key) {
+ *     public Iterator<Node> get(String key) {
  *       MyClass j = proxy.get(key);
  *       return j == null ? null : new Proxy(proxy, key, -1);
  *     }
@@ -97,10 +97,11 @@ public interface Node {
      * Return the first child of this Node that is stored with the specified key,
      * or <code>null</code> if this Node has no matching child, or no concept of children stored against a key
      * (i.e. it's not a map).
-     * @param name the name, which will never be null and will always be at least one character long
+     * @param name the name, which will never be null and will always be at least one character long. It may be a special value, eg "*" or "@*",
+     * the meaning of which is going to depend on the model, but is generally a wildcard.
      * @return the Node matching that value, or null if none found or it's not applicable
      */
-    public Node get(String name);
+    public Iterator<Node> get(String name);
 
     /**
      * Return the child of this Node that is stored with the specified index,
@@ -109,7 +110,7 @@ public interface Node {
      * @param index the index, which may be any value
      * @return the Node matching that value, or null if the value is out of range or it's not applicable
      */
-    public Node get(int index);
+    public Iterator<Node> get(int index);
 
     /**
      * Return the type of this Node. The values depend on the source language but we suggest at least
@@ -139,14 +140,6 @@ public interface Node {
     public int index();
 
     /**
-     * Return an Iterator listing all the children of this Node, in order.
-     * If this node has no children because it is empty, return an empty iterator.
-     * If this node has no children because it doesn't have that concept (it's a simple type), return null.
-     * @return an iterator to access the children of this node, or <code>null</code> if this Node cannot have children
-     */
-    public Iterator<Node> children();
-
-    /**
      * If this Node is a proxy for another object, return that object, otherwise return this.
      * Used to unwrap the return value from {@link ZPath#eval}.
      */
@@ -171,7 +164,7 @@ public interface Node {
             public boolean booleanValue() {
                 return v;
             }
-            public Node get(int i) {
+            public Iterator<Node> get(int i) {
                 return null;
             }
             public String key() {
@@ -183,10 +176,7 @@ public interface Node {
             public String type() {
                 return "boolean";
             }
-            public Node get(String i) {
-                return null;
-            }
-            public Iterator<Node> children() {
+            public Iterator<Node> get(String i) {
                 return null;
             }
             public String toString() {
@@ -226,10 +216,10 @@ public interface Node {
             public boolean booleanValue() {
                 return false;
             }
-            public Node get(int i) {
+            public Iterator<Node> get(int i) {
                 return null;
             }
-            public Node get(String i) {
+            public Iterator<Node> get(String i) {
                 return null;
             }
             public String key() {
@@ -240,9 +230,6 @@ public interface Node {
             }
             public String type() {
                 return "number";
-            }
-            public Iterator<Node> children() {
-                return null;
             }
             public String toString() {
                 return stringValue();
@@ -285,10 +272,10 @@ public interface Node {
             public boolean booleanValue() {
                 return false;
             }
-            public Node get(int i) {
+            public Iterator<Node> get(int i) {
                 return null;
             }
-            public Node get(String i) {
+            public Iterator<Node> get(String i) {
                 return null;
             }
             public String key() {
@@ -299,9 +286,6 @@ public interface Node {
             }
             public String type() {
                 return "string";
-            }
-            public Iterator<Node> children() {
-                return null;
             }
             public String toString() {
                 return stringValue();

@@ -156,7 +156,7 @@ public class ZPath {
             } else if (t.isInteger() && !first) {
                 out.add(Axis.axisIndex(Integer.parseInt(t.value)));
             } else if (t == Term.STAR) {
-                out.add(Axis.ANYCHILD);
+                out.add(Axis.axisName(t.value));
             } else if (t == Term.STARSTAR) {
                 out.add(Axis.SELFORANYDESCENDENT);
             } else if (t == Term.AT) {
@@ -221,7 +221,7 @@ public class ZPath {
         }
         Function f = config.getFunction(name);
         if (f == null) {
-            error(in.seek(in.tell() - 1), "unknown function \"" + name + "\"");
+            f = new FunctionAxis.Dynamic(name);     // Fail now or later?
         }
         if (!f.verify(args)) {
             error(in.seek(in.tell() - 1), "invalid function arguments for \"" + name + "\"");
