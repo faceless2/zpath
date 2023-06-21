@@ -106,6 +106,9 @@ public class Configuration {
      * to an index into a set of nodes. Used to resolve <code>index()</code> and <code>count()</code>
      */
     public void setContext(int index, List<Node> nodes) {
+        if (nodes == null) {
+            index = -1;
+        }
         this.contextIndex = index;
         this.contextNodes = nodes;
     }
@@ -380,7 +383,9 @@ public class Configuration {
             }
             @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
                 if (args.isEmpty()) {
-                    out.add(Node.create(config.getContextNodes().size()));
+                    if (config.getContextNodes() != null) {
+                        out.add(Node.create(config.getContextNodes().size()));
+                    }
                 } else {
                     int count = 0;
                     for (Node node : args.get(0).eval(in, new ArrayList<Node>(), config)) {
@@ -390,11 +395,72 @@ public class Configuration {
                 }
             }
         });
-
+        CONFIG.registerFunction(new Function() {
+            //
+            // is-first()       return true if index into the current nodeset of this node == 0
+            //
+            @Override public String getName() {
+                return "is-first";
+            }
+            @Override public boolean verify(List<Term> args) {
+                return args.size() == 0;
+            }
+            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
+                if (config.getContextIndex() >= 0 && config.getContextNodes() != null) {
+                    out.add(Node.create(config.getContextIndex() == 0));
+                }
+            }
+        });
+        CONFIG.registerFunction(new Function() {
+            //
+            // is-last()          return the index into the current nodeset of this node == count()-1
+            //
+            @Override public String getName() {
+                return "is-last";
+            }
+            @Override public boolean verify(List<Term> args) {
+                return args.size() == 0;
+            }
+            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
+                if (config.getContextIndex() >= 0 && config.getContextNodes() != null) {
+                    out.add(Node.create(config.getContextIndex() == config.getContextNodes().size() - 1));
+                }
+            }
+        });
         /*
         CONFIG.registerFunction(new Function() {
             //
-            // prev()           return the node in the current nodeset with the previous index()
+            // match(index)     return the specified node from the current nodeset. TODO is this useful?
+            //
+            public String getName() {
+                return "match";
+            }
+            public boolean verify(List<Term> terms) {
+                return terms.size() == 1;
+            }
+            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
+                List<Node> context = config.getContextNodes();
+                if (context != null) {
+                    List<Node> tmp = new ArrayList<Node>();
+                    args.get(0).eval(in, tmp, config);
+                    if (tmp.size() > 0) {
+                        double d = tmp.doubleValue();
+                        if (d == d) {
+                            int i = (int)d;
+                            if (i >= 0 && i < context.size()) {
+                                out.add(context.get(i));
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        */
+
+        CONFIG.registerFunction(new Function() {
+            //
+            // prev()           if this node can be accessed from its parent with an index, evaluates as the the node accessed from the previous index.
+            // prev(x)          if the specified nodes can be accessed from their parents with an index, evaluates as the the node accessed from the previous index.
             //
             public String getName() {
                 return "prev";
@@ -403,18 +469,23 @@ public class Configuration {
                 return terms.isEmpty();
             }
             @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                List<Node> nodeset = config.getContextNodes();
-                if (nodeset != null) {
-                    int index = config.getContextIndex();
+                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
+                    int index = node.index();
                     if (index > 0) {
-                        out.add(nodeset.get(index - 1));
+                        Iterator<Node> i = node.parent().get(index - 1);
+                        if (i != null) {
+                            while (i.hasNext()) {
+                                out.add(i.next());
+                            }
+                        }
                     }
                 }
             }
         });
         CONFIG.registerFunction(new Function() {
             //
-            // next()           return the node in the current nodeset with the next index()
+            // next()           if this node can be accessed from its parent with an index, evaluates as the the node accessed from the next index.
+            // next(x)          if the specified nodes can be accessed from their parent with an index, evaluates as the the node accessed from the next index.
             //
             public String getName() {
                 return "next";
@@ -423,17 +494,19 @@ public class Configuration {
                 return terms.isEmpty();
             }
             @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                List<Node> nodeset = config.getContextNodes();
-                if (nodeset != null) {
-                    int index = config.getContextIndex();
-                    if (index >= 0 && index + 1 < nodeset.size()) {
-                        out.add(nodeset.get(index + 1));
+                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
+                    int index = node.index();
+                    if (index >= 0) {
+                        Iterator<Node> i = node.parent().get(index + 1);
+                        if (i != null) {
+                            while (i.hasNext()) {
+                                out.add(i.next());
+                            }
+                        }
                     }
                 }
             }
         });
-        */
-
 
         CONFIG.registerFunction(new Function() {
             public String getName() {

@@ -3,7 +3,6 @@
     "first": "John",
     "last": "doe",
     "age": 26,
-    "dead": false,
     "address": {
         "street": "naist street",
         "city": 123("Nara"),
@@ -34,7 +33,7 @@
 first									/first
 first									"John"
 age									26
-*									/first,/last,/age,/dead,/address,/numbers
+*									/first,/last,/age,/address,/numbers,/typetest
 address/city								"Nara"
 [age == 26]								/ 		# test on current item
 *[city == 'Nara']							/address	# test an all children
@@ -181,10 +180,12 @@ count(**/tr)								3
 **/table[count(tr) == 3]						/body/table
 **/table[count(tr) == 3 && count(tr/td) == 6]				/body/table
 **/tr[!@class]/td[@id]							/body/table/tr[0]/td[0],/body/table/tr[0]/td[1],/body/table/tr[2]/td[0],/body/table/tr[2]/td[1]
-body/*[key(prev()) == "table"]						/body/person
-body/*[key(next()) == "person"]						/body/table
+**[key(prev()) == "table"]						/body/person
+**[key(next()) == "person"]						/body/table
 **/td[@id == "td3.2" && string() == "TD3.2"]				/body/table/tr[2]/td[1]
 **/table/tr[index() == count() - 1]					/body/table/tr[2]
+**/table/tr[is-first()]							/body/table/tr[0]
+**/table/tr[is-last()]							/body/table/tr[2]
 **/rdf:seq/rdf:li							/body/rdf:seq/rdf:li
 **/rdf:seq/@rdf:about							"aboutvalue"
 **/td/@id								"td1.1","td1.2","td2.1","td2.2","td3.1","td3.2"
@@ -204,10 +205,9 @@ sum(**/items/item/eval(num(price) * num(quantity)))			22.5			# sum of price*quan
 #---------------------------------------------------------------------------------------
 
 # TODO
-# * prev(), next() need fixing - can we make generic? item(index() - 1)?
-# * ensure we can select first or last item in a selection
+# * ensure we can select first or last item in a selection	 - yes, index()==0 or index()==count() - 1
 # * ensure we can handle non-string key types = *[key() == buffer("foo")]
-# * isnull()
+# * isnull() - no need, type(nnn) == "null" or type(nnn) == "undefined"
 # * ancestor - ..* ??
 # * difference() function
 
@@ -224,5 +224,6 @@ sum(**/items/item/eval(num(price) * num(quantity)))			22.5			# sum of price*quan
 # //a/@href'                                           // hrefs of all anchors                                                         /**/a/@href
 # //*[count(*)=3]'                                     // all nodes with 3 children                                                    /**/*[count(*) == 3]
 # //var|//acronym'                                     // all vars and acronyms                                                        union(//var, //acronym)
+# child::*[self::chapter or self::appendix][position()=last()]  // last <chapter> or <appendix> child of the context node.	       union(chapter, appendix)[isfirst()]
 
 # vim: syntax=none tabstop=8 noexpandtab

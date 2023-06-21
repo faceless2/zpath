@@ -16,7 +16,6 @@ public class TestHarness {
 
     public static void main(String[] args) throws Exception {
         BitSet debug = new BitSet();
-        System.out.println(Arrays.toString(args));
         for (int i=0;i<args.length;i++) {
             String s = args[i];
             if (s.equals("--debug")) {
