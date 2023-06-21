@@ -3,6 +3,7 @@
     "first": "John",
     "last": "doe",
     "age": 26,
+    "dead": false,
     "address": {
         "street": "naist street",
         "city": 123("Nara"),
@@ -21,14 +22,19 @@
             "type": "work",
             "number": "0123-9999-8910"
         }
-    ]
+    ],
+    "typetest": {
+        "numvalue": 30,
+	"nullvalue": null,
+	"falsevalue": false
+    }
 }
 ---- END
 
 first									/first
 first									"John"
 age									26
-*									/first,/last,/age,/address,/numbers
+*									/first,/last,/age,/dead,/address,/numbers
 address/city								"Nara"
 [age == 26]								/ 		# test on current item
 *[city == 'Nara']							/address	# test an all children
@@ -75,6 +81,19 @@ index(numbers/#1)							1
 index()									NULL
 index(..)								NULL
 count(numbers/*)							3
+first, first,last							/first,/first,/last
+union(first, first,last)						/first,/last
+intersection(first, *)							/first
+intersection(first, first, last)					NULL
+[/ == 1]								NULL
+**/typetest[* == 30]							/typetest
+**/typetest/falsevalue							false
+**/typetest/nullvalue 							null
+**/typetest[nullvalue]							/typetest
+**/typetest[!!nullvalue]						NULL
+**/typetest[type(nullvalue) == "null"]					/typetest
+**/typetest[type(missingvalue) == "null"]				NULL
+**/typetest[type(missingvalue) == "undefined"]				/typetest
 
 # Ambiguity between path and operators
 index(numbers/*[type == 'home']) == 1					true
@@ -92,6 +111,7 @@ index(numbers/*[type == 'home']) == 1					true
 age / 2									13
 age /2									ERROR
 2 - 2									0
+2 * 3 + 4								10
 age == 26 ? age + 2 : 'young'						28
 age != 26 ? 'old' : 'young'						"young"
 age == 26 ? (name == 'Jim' ? '26Jim' : '26NotJim') : 'Not26'		"26NotJim"
@@ -181,22 +201,15 @@ sum(**/items/item/eval(num(price) * num(quantity)))			22.5			# sum of price*quan
 **/@*									"tr1", "td1.1", "td1.2", "second", "tr2", "td2.1", "td2.2", "tr3", "td3.1", "td3.2", "aboutvalue", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 
 #---------------------------------------------------------------------------------------
-#  XML
 #---------------------------------------------------------------------------------------
 
 # TODO
 # * prev(), next() need fixing - can we make generic? item(index() - 1)?
 # * ensure we can select first or last item in a selection
 # * ensure we can handle non-string key types = *[key() == buffer("foo")]
-# * fix tokenization so we always need a space around operators
-# * xpath - position() instead of index
 # * isnull()
 # * ancestor - ..* ??
-# * path/function(), to run function on that context
-# * path/eval(), to wrap an expression in a path
 # * difference() function
-# * tr#2 should match the second row
-# * a,b at top level should give the sequence
 
 
 # //hr[@class="edge" and position()=1]'                // every first hr of 'edge' class                                               /**/hr[@class == "edge" && index() == 1]

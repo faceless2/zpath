@@ -9,16 +9,12 @@ import java.util.*;
  */
 public class Term implements Axis {
 
-    static final String DELIMITERS = " \t\r\b()[]*/+-&|!=<>";
-
     /** The whitespace Token */
     public static final Term WS = new Term(" ");
     /** The "." Token */
     public static final Term DOT = new Term(".");
     /** The ".." Token */
     public static final Term DOTDOT = new Term("..");
-    /** The "@" Token */
-    public static final Term AT = new Term("@");
 
     /** The "[" Token */
     public static final Term LBRACE = new Term("[");
@@ -39,6 +35,8 @@ public class Term implements Axis {
     public static final Term STARSTAR = new Term("**");
     /** The "/" Token */
     public static final Term SLASH = new Term("/", 3);
+    /** The "%" Token */
+    public static final Term PERCENT = new Term("%", 3);
     /** The "+" Token */
     public static final Term PLUS = new Term("+", 4);
     /** The "-" Token */
@@ -65,57 +63,85 @@ public class Term implements Axis {
     public static final Term AND = new Term("&&", 11);
     /** The "||;" Token */
     public static final Term OR = new Term("||", 12);
+    /** The "?" Token */
+    public static final Term QUESTION = new Term("?", 13);
+    /** The ":" Token */
+    public static final Term COLON = new Term(":", 13);
+    /** The "," Token */
+    public static final Term COMMA = new Term(",", 15);
 
-    private static final int OTHER = 0, DELIM = 1, STRING = 2, INTEGER = 3, REAL = 4, NAME = 5, FUNCTION = 6;
+    private static final int OTHER = 0, DELIM = 1, STRING = 2, INTEGER = 3, REAL = 4, NAME = 5, INDEX = 6, FUNCTION = 7;
     private static final int NOSCORE = -1;
 
     private final int type;
     final String value;
-    final int score;
+    private final Number nvalue;
+    private final int score;
 
-    private Term(int type, String value, int score) {
+    private Term(int type, String value, Number nvalue, int score) {
         this.type = type;
         this.value = value;
+        this.nvalue = nvalue;
         this.score = score;
     }
 
     protected Term() {
-        this(OTHER, null, NOSCORE);
+        this(OTHER, null, null, NOSCORE);
     }
 
     private Term(String s) {
-        this(DELIM, s, NOSCORE);
+        this(DELIM, s, null, NOSCORE);
     }
 
     private Term(String s, int score) {
-        this(DELIM, s, score);
+        this(DELIM, s, null, score);
     }
 
-    boolean isUnary() {
+    int compareTo(Term other) {
+        return score - other.score;
+    }
+
+    boolean isUnaryOperator() {
         return score > 0 && score <= 2;
     }
+
+    boolean isBinaryOperator() {
+        return score > 2;
+    }
+
+    boolean isOperator() {
+        return isUnaryOperator() || isBinaryOperator();
+    }
+
     static Term newString(String value) {
-        return new Term(STRING, value, NOSCORE);
+        return new Term(STRING, value, null, NOSCORE);
     }
 
     static Term newFunction(String value) {
-        return new Term(FUNCTION, value, NOSCORE);
+        return new Term(FUNCTION, value, null, NOSCORE);
     }
 
     static Term newName(String value) {
-        return new Term(NAME, value, NOSCORE);
+        return new Term(NAME, value, null, NOSCORE);
     }
 
-    static Term newInteger(String value) {
-        return new Term(INTEGER, value, NOSCORE);
+    static Term newInteger(int value) {
+        return new Term(INTEGER, Integer.toString(value), value, NOSCORE);
     }
-    static Term newReal(String value) {
-        return new Term(REAL, value, NOSCORE);
+
+    static Term newReal(double value) {
+        return new Term(REAL, Double.toString(value), value, NOSCORE);
+    }
+
+    static Term newIndex(int value) {
+        return new Term(INDEX, Integer.toString(value), value, NOSCORE);
     }
 
     public String toString() {
         if (isFunction()) {
             return value + "(";
+        } else if (isIndex()) {
+            return "#" + value;
         } else if (isString()) {
             StringBuilder sb = new StringBuilder();
             sb.append('"');
@@ -170,6 +196,14 @@ public class Term implements Axis {
     }
 
     /**
+     * Return true if this Term is an index
+     * @return true if it's an index
+     */
+    public boolean isIndex() {
+        return type == INDEX;
+    }
+
+    /**
      * Return true if this Term is an integer or a real number 
      * @return true if it's a number
      */
@@ -213,7 +247,7 @@ public class Term implements Axis {
      * Return true if this Term is an expression 
      * @return true if it's a function
      */
-    public boolean isCalc() {
+    public boolean isExpr() {
         return false;
     }
 
@@ -223,10 +257,8 @@ public class Term implements Axis {
      * @throws IllegalStateException if its not a double
      */
     public double doubleValue() {
-        if (isInteger()) {
-            return Integer.parseInt(value);
-        } else if (isReal()) {
-            return Double.parseDouble(value);
+        if (isNumber()) {
+            return nvalue.doubleValue();
         } else {
             throw new IllegalStateException();
         }
@@ -238,10 +270,16 @@ public class Term implements Axis {
      * @throws IllegalStateException if its not a integer
      */
     public int intValue() {
-        if (isInteger()) {
-            return Integer.parseInt(value);
-        } else if (isReal()) {
-            return (int)Double.parseDouble(value);
+        if (isNumber()) {
+            return nvalue.intValue();
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+
+    int indexValue() {
+        if (isIndex()) {
+            return nvalue.intValue();
         } else {
             throw new IllegalStateException();
         }
@@ -266,30 +304,20 @@ public class Term implements Axis {
      * @param out if this Term evaluates to one or more Nodes, they should be added to this collection
      * @param config the configuration
      */
-    @Override public void eval(final Collection<Node> in, Collection<Node> out, Configuration config) {
+    @Override public List<Node> eval(final List<Node> in, List<Node> out, Configuration config) {
         Node n = null;
         if (isString()) {
             n = Node.create(value);
         } else if (isInteger()) {
             n = Node.create(Integer.parseInt(value));
-        } else if (isInteger()) {
+        } else if (isReal()) {
             n = Node.create(Double.parseDouble(value));
         }
+        // Index types have been converted to paths already. They could get here if we allowed eg **[#1 == "x"], but we don't
         if (n != null) {
             out.add(n);
-            if (config.isDebug()) {
-                config.debug("match: " + n);
-            }
-        } else if (config.isDebug()) {
-            config.debug("miss: " + n);
         }
-    }
-
-    /**
-     * @hidden
-     */
-    @Override public void dump(Configuration config) {
-        config.debug("term: " + this);
+        return out;
     }
 
 }

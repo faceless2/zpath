@@ -6,26 +6,37 @@ class FunctionAxis extends Term implements Axis {
 
     final Function function;
     final List<Term> args;
+    final boolean path;
 
-    FunctionAxis(Function function, List<Term> args) {
+    FunctionAxis(Function function, List<Term> args, boolean path) {
         this.function = function;
         this.args = args;
+        this.path = path;
     }
 
     @Override public String toString() {
         return function.getName() + "(" + args + ")";
     }
 
-    @Override public void dump(Configuration config) {
-        config.debug(toString());
+    @Override public void log(Configuration.Logger logger) {
+        logger.log("axis-function(" + this + ")");
     }
 
     @Override public boolean isFunction() {
         return true;
     }
 
-    @Override public void eval(final Collection<Node> in, final Collection<Node> out, Configuration config) {
-        function.eval(args, in, out, config);
+    @Override public List<Node> eval(final List<Node> in, final List<Node> out, Configuration config) {
+        if (path) {
+            for (int i=0;i<in.size();i++) {
+                List<Node> tmp = new ArrayList<Node>();
+                function.eval(args, Collections.<Node>singletonList(in.get(i)), tmp, config);
+                out.addAll(tmp);
+            }
+        } else {
+            function.eval(args, in, out, config);
+        }
+        return out;
     }
 
     static class Dynamic implements Function {
@@ -44,7 +55,7 @@ class FunctionAxis extends Term implements Axis {
             return true; // never called
         }
 
-        public void eval(List<Term> arguments, Collection<Node> in, Collection<Node> out, Configuration config) {
+        public void eval(List<Term> args, List<Node> in, List<Node> out, Configuration config) {
             synchronized(this) {
                 if (function == null) {
                     function = config.getFunction(name);
@@ -53,9 +64,8 @@ class FunctionAxis extends Term implements Axis {
                     }
                 }
             }
-            function.eval(arguments, in, out, config);
+            function.eval(args, in, out, config);
         }
-
     }
 
 }

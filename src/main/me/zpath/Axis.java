@@ -2,91 +2,120 @@ package me.zpath;
 
 import java.util.*;
 
+/**
+ * The Axis interface is how we move from one set of nodes to the next - the term is from XPath
+ */
 interface Axis {
 
-    void eval(Collection<Node> in, Collection<Node> out, Configuration config);
+    final static int ANYINDEX = -2;
 
-    /** @hidden */
-    void dump(Configuration config);
+    /**
+     * Evaluate the set of nodes supplied in "in", move along this axis and add matching nodes to "out"
+     * @param in the list of nodes in our input set - read only
+     * @param out the list of nodes we are to add to
+     * @param config the configuration
+     */
+    List<Node> eval(List<Node> in, List<Node> out, Configuration config);
 
-    /** @hidden */
-    static Axis axisName(final String name) {
+    default void log(Configuration.Logger logger) {
+        logger.log(toString());
+    }
+
+    /**
+     * The "travel to a matching child of the input node" axis
+     *
+     * Several possibilities
+     *   *              (WILDCARD, ANYINDEX)    match key WILDCARD, all items
+     *   name           (name, ANYINDEX)        match key "name", all items
+     *   name#1         (name, 1)               match key "name", second item
+     *   #1             (null, 1)               match key 1
+     *   *#1            (WILDCARD, 1)           match key WILDCARD, first item
+     *   #1#2           (1, 2)                  match key 1, third item
+     *
+     * @param name if a name is used as part of the axis, wil
+     * @hidden
+     */
+    static Axis axisKey(final Object name, final int index) {
         return new Axis() {
-            @Override public void eval(final Collection<Node> in, final Collection<Node> out, final Configuration config) {
+            @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
+                final Configuration.Logger logger = config.getLogger();
+                Set<Node> seen = new HashSet<Node>(out);
                 for (Node node : in) {
-                    Iterator<Node> i = node.get(name);
-                    if (i != null && i.hasNext()) {
-                        while (i.hasNext()) {
-                            Node n = i.next();
-                            out.add(n);
-                            if (config.isDebug()) {
-                                config.debug("match: " + n);
+                    if (seen.add(node)) {
+                        Iterator<Node> i = node.get(name != null ? name : Integer.valueOf(index));
+                        if (i != null && i.hasNext()) {
+                            int c = name != null ? index : ANYINDEX;
+                            while (i.hasNext()) {
+                                Node n = i.next();
+                                if (c == ANYINDEX || c-- == 0) {
+                                    out.add(n);
+                                    if (logger != null) {
+                                        logger.log("match: " + n);
+                                    }
+                                    if (c != ANYINDEX) {
+                                        break;
+                                    }
+                                }
                             }
+                        } else if (logger != null) {
+                            logger.log("miss: " + node);
                         }
-                    } else if (config.isDebug()) {
-                        config.debug("miss: " + node);
                     }
                 }
+                return out;
             }
             @Override public String toString() {
                 StringBuilder sb = new StringBuilder();
-                for (int i=0;i<name.length();i++) {
-                    char c = name.charAt(i);
-                    if (c == '\\' || Term.DELIMITERS.indexOf(c) >= 0) {
-                        if (c == '\n') {
-                            sb.append("\\n");
-                        } else if (c == '\r') {
-                            sb.append("\\r");
-                        } else if (c == '\t') {
-                            sb.append("\\t");
-                        } else {
-                            sb.append("\\");
-                            sb.append(c);
-                        }
+                sb.append("axis-key(");
+                if (name != null) {
+                    if (name == Node.WILDCARD) {
+                        sb.append("key=*");
                     } else {
-                        sb.append(c);
-                    }
-                }
-                return sb.toString();
-            }
-            @Override public void dump(Configuration config) {
-                config.debug("axis: child name=\"" + toString() + "\"");
-            }
-        };
-    }
-
-    /** @hidden */
-    static Axis axisIndex(final int index) {
-        return new Axis() {
-            @Override public void eval(final Collection<Node> in, final Collection<Node> out, final Configuration config) {
-                for (Node node : in) {
-                    Iterator<Node> i = node.get(index);
-                    if (i != null && i.hasNext()) {
-                        while (i.hasNext()) {
-                            Node n = i.next();
-                            out.add(n);
-                            if (config.isDebug()) {
-                                config.debug("match: " + n);
+                        sb.append("key=\"");
+                        String n = name.toString();
+                        for (int i=0;i<n.length();i++) {
+                            char c = n.charAt(i);
+                            if (c == '\\' || ZPath.PATH_DELIMITERS.indexOf(c) >= 0) {
+                                if (c == '\n') {
+                                    sb.append("\\n");
+                                } else if (c == '\r') {
+                                    sb.append("\\r");
+                                } else if (c == '\t') {
+                                    sb.append("\\t");
+                                } else {
+                                    sb.append("\\");
+                                    sb.append(c);
+                                }
+                            } else {
+                                sb.append(c);
                             }
                         }
-                    } else {
-                        config.debug("miss: " + node);
+                        sb.append('"');
                     }
                 }
-            }
-            @Override public String toString() {
-                return Integer.toString(index);
-            }
-            @Override public void dump(Configuration config) {
-                config.debug("axis: child index=" + index);
+                if (index != ANYINDEX) {
+                    if (name != null) {
+                        sb.append(" index=");
+                    } else {
+                        sb.append("index=");
+                    }
+                    sb.append(index);
+                }
+                sb.append(')');
+                return sb.toString();
             }
         };
     }
 
-    /** @hidden */
+    /**
+     * The "travel to the input node or any of its descendents" axis
+     * @hidden
+     */
     static Axis SELFORANYDESCENDENT = new Axis() {
-        @Override public void eval(final Collection<Node> in, final Collection<Node> out, final Configuration config) {
+        @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
+            final Configuration.Logger logger = config.getLogger();
             Stack<Node> stack = new Stack<Node>();
+            Set<Node> seen = new HashSet<Node>(out);
             for (Node node : in) {
                 // Iterative depth first traversal from node
                 stack.push(node);
@@ -102,144 +131,129 @@ interface Axis {
                             stack.push(temp.get(j));
                         }
                     }
-                    out.add(n);
-                    if (config.isDebug()) {
-                        if (config.isDebug()) {
-                            config.debug("match: " + n);
-                        }
+                    if (seen.add(n)) {
+                        out.add(n);
+                    }
+                    if (logger != null) {
+                        logger.log("match: " + n);
                     }
                 }
             }
+            return out;
         }
         @Override public String toString() {
-            return "**";
-        }
-        @Override public void dump(Configuration config) {
-            config.debug("axis: self or any descendent");
+            return "axis-self-or-descendent()";
         }
     };
 
-    /** @hidden */
+    /**
+     * The "travel to the parent node" axis
+     * @hidden
+     */
     static Axis PARENT = new Axis() {
-        @Override public void eval(final Collection<Node> in, final Collection<Node> out, final Configuration config) {
+        @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
+            final Configuration.Logger logger = config.getLogger();
+            Set<Node> seen = new HashSet<Node>(out);
             for (Node node : in) {
                 Node parent = node.parent();
-                if (parent != null) {
+                if (parent != null && seen.add(parent)) {
                     out.add(parent);
-                    if (config.isDebug()) {
-                        config.debug("match: " + parent);
+                    if (logger != null) {
+                        logger.log("match: " + parent);
                     }
                 }
             }
+            return out;
         }
         @Override public String toString() {
-            return "..";
-        }
-        @Override public void dump(Configuration config) {
-            config.debug("axis: parent");
+            return "axis-parent()";
         }
     };
 
-    /** @hidden */
+    /**
+     * The "travel to the root node" axis
+     * @hidden
+     */
     static Axis ROOT = new Axis() {
-        @Override public void eval(final Collection<Node> in, final Collection<Node> out, final Configuration config) {
+        @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
             Node root = in.iterator().next();
             while (root.parent() != null) {
                 root = root.parent();
             }
-            if (config.isDebug()) {
-                config.debug("match: " + root);
+            if (config.getLogger() != null) {
+                config.getLogger().log("match: " + root);
             }
             out.add(root);
+            return out;
         }
         @Override public String toString() {
-            return "/";
-        }
-        @Override public void dump(Configuration config) {
-            config.debug("axis: root");
+            return "axis-root()";
         }
     };
 
-    /** @hidden */
+    /**
+     * The "travel to the input node" axis
+     * @hidden
+     */
     static Axis SELF = new Axis() {
-        @Override public void eval(final Collection<Node> in, final Collection<Node> out, final Configuration config) {
+        @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
+            Set<Node> seen = new HashSet<Node>(out);
+            final Configuration.Logger logger = config.getLogger();
             for (Node node : in) {
-                out.add(node);
-                if (config.isDebug()) {
-                    config.debug("match: " + node);
-                }
-            }
-        }
-        @Override public String toString() {
-            return ".";
-        }
-        @Override public void dump(Configuration config) {
-            config.debug("axis: self\n");
-        }
-    };
-
-    /** @hidden */
-    static Axis KEY = new Axis() {
-        @Override public void eval(final Collection<Node> in, final Collection<Node> out, final Configuration config) {
-            for (Node node : in) {
-                if (node.key() != null) {
-                    out.add(Node.create(node.key()));
-                    if (config.isDebug()) {
-                        config.debug("match: \"" + node.key() + "\"");
-                    }
-                } else if (node.index() >= 0) {
-                    out.add(Node.create(node.index()));
-                    if (config.isDebug()) {
-                        config.debug("match: " + node.index());
-                    }
-                } else {
-                    if (config.isDebug()) {
-                        config.debug("miss");
+                if (seen.add(node)) {
+                    out.add(node);
+                    if (logger != null) {
+                        logger.log("match: " + node);
                     }
                 }
             }
+            return out;
         }
         @Override public String toString() {
-            return "@";
-        }
-        @Override public void dump(Configuration config) {
-            config.debug("axis: key");
+            return "axis-self()";
         }
     };
 
-    /** @hidden */
+    /**
+     * The "travel to the any input nodes that match the expression" axis
+     * @hidden
+     */
     static Axis axisMatch(final Term term) {
         return new Term() {
-            @Override public void eval(final Collection<Node> in, final Collection<Node> out, final Configuration config) {
+            @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
+                final Configuration.Logger logger = config.getLogger();
                 List<Node> tmp = new ArrayList<Node>();
-                for (Node node : in) {
+                int oldindex = config.getContextIndex();
+                List<Node> oldcontext = config.getContextNodes();
+                List<Node> contextNodes = Collections.<Node>unmodifiableList(in);
+                for (int i=0;i<in.size();i++) {
+                    Node node = in.get(i);
                     tmp.clear();
-                    term.eval(Collections.<Node>singleton(node), tmp, config);
-                    boolean match = !tmp.isEmpty() && tmp.iterator().next().booleanValue();
+                    config.setContext(i, contextNodes);
+                    term.eval(Collections.<Node>singletonList(node), tmp, config);
+                    boolean match = !tmp.isEmpty() && (term.isPath() || tmp.iterator().next().booleanValue());
                     if (match) {
                         out.add(node);
                     }
-                    if (config.isDebug()) {
+                    if (logger != null) {
                         if (match) {
-                            config.debug("match: " + node);
+                            logger.log("match: " + node);
                         } else {
-                            config.debug("miss");
+                            logger.log("miss: " + node);
                         }
                     }
                 }
+                config.setContext(oldindex, oldcontext);
+                return out;
             }
             @Override public String toString() {
-                return "[" + term + "]";
+                return "axis-match(" + term + ")";
             }
-            @Override public void dump(Configuration config) {
-                config.debug("axis: matches " + term);
-                Configuration copy = config.debugIndent();
-                StringBuilder sb = new StringBuilder();
-                copy.setDebug(sb);
-                term.dump(copy);
-                String s = sb.toString();
-                s = s.substring(s.indexOf('\n') + 1, s.length() - 1);
-                config.debug(s);
+            @Override public void log(Configuration.Logger logger) {
+                super.log(logger);
+                logger.enter();
+                term.log(logger);
+                logger.exit();
             }
         };
     }

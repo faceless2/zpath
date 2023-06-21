@@ -79,7 +79,7 @@ class CursorList<E> extends AbstractList<E> {
     }
 
     public E peek() {
-        return get(pos);
+        return pos == size() ? null : get(pos);
     }
 
     public CursorList<E> seek(int off) {
@@ -111,10 +111,10 @@ class CursorList<E> extends AbstractList<E> {
         for (int i=0;i<size();i++) {
             String s = get(i) == null ? "<NULL>" : get(i).toString();;
             if (s.trim().equals("")) {
-                s = "<WS>";
+                s = " ";
             }
             if (i > 0) {
-                sb.append(' ');
+//                sb.append(' ');
             }
             if (i == tell()) {
                 for (int j=0;j<s.length();j++) {

@@ -10,9 +10,48 @@ import java.util.*;
  */
 public class DomFactory implements NodeFactory {
     
+    private static final int UNKNOWN_INDEX = -2;
     final List<Function> functions = new ArrayList<Function>();
 
     public DomFactory() {
+        functions.add(new Function() {
+            @Override public String getName() {
+                return "uri";
+            }
+            @Override public boolean verify(List<Term> args) {
+                return args.size() <= 1;
+            }
+            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
+                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
+                    if (node instanceof Proxy) {
+                        Proxy p = (Proxy)node;
+                        String v = p.proxy.getNamespaceURI();
+                        if (v != null && v.length() > 0) {
+                            out.add(Node.create(v));
+                        }
+                    }
+                }
+            }
+        });
+        functions.add(new Function() {
+            @Override public String getName() {
+                return "local-name";
+            }
+            @Override public boolean verify(List<Term> args) {
+                return args.size() <= 1;
+            }
+            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
+                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
+                    if (node instanceof Proxy) {
+                        Proxy p = (Proxy)node;
+                        String v = p.proxy.getLocalName();
+                        if (v != null && v.length() > 0) {
+                            out.add(Node.create(v));
+                        }
+                    }
+                }
+            }
+        });
     }
 
     /** 
@@ -24,202 +63,184 @@ public class DomFactory implements NodeFactory {
             for (Function f : functions) {
                 config.registerFunction(f);
             }
-            return new Proxy((org.w3c.dom.Node)proxy, null, -1);
+            if (proxy instanceof org.w3c.dom.Document) {
+                proxy = ((org.w3c.dom.Document)proxy).getDocumentElement();
+            }
+            return new Proxy((org.w3c.dom.Node)proxy, UNKNOWN_INDEX);
         }
         return null;
     }
 
     private static class Proxy implements Node {
 
-        final int index;
-        final String key;
-        final org.w3c.dom.Node proxy;
+        private final org.w3c.dom.Node proxy;
+        private int index;
 
-        Proxy(org.w3c.dom.Node node, String key, int index) {
+        Proxy(org.w3c.dom.Node node, int index) {
             this.proxy = node;
-            this.key = key;
             this.index = index;
         }
 
-        public Iterator<Node> get(String key) {
-            if (proxy instanceof Element) {
-                Element elt = (Element)proxy;
-                if (key.startsWith("@")) {
-                    if (key.equals("@*")) {
-                        return new Iterator<Node>() {
-                            int i = 0;
-                            public boolean hasNext() {
-                                return i < elt.getAttributes().getLength();
+        @Override public Iterator<Node> get(Object keyobj) {
+            if (keyobj == WILDCARD || keyobj instanceof String) {
+                String key = keyobj == WILDCARD ? null : (String)keyobj;
+                if (proxy instanceof Element) {
+                    Element elt = (Element)proxy;
+                    if (key != null && key.startsWith("@")) {
+                        if (key.equals("@*")) {
+                            return new Iterator<Node>() {
+                                int i = 0;
+                                @Override public boolean hasNext() {
+                                    return i < elt.getAttributes().getLength();
+                                }
+                                @Override public Node next() {
+                                    if (!hasNext()) {
+                                        throw new NoSuchElementException();
+                                    }
+                                    Node node = new Proxy((Attr)elt.getAttributes().item(i), i);
+                                    i++;
+                                    return node;
+                                }
+                                @Override public void remove() {
+                                    throw new UnsupportedOperationException();
+                                }
+                            };
+                        } else {
+                            Attr attr = elt.getAttributeNode(key.substring(1));
+                            if (attr != null) {
+                                return Collections.<Node>singleton(new Proxy(attr, -1)).iterator();
+                            } else {
+                                return Collections.<Node>emptySet().iterator();
                             }
-                            public Node next() {
+                        }
+                    } else {
+                        return new Iterator<Node>() {
+                            org.w3c.dom.Node node;
+                            int index;
+                            { step(); }
+                            @Override public boolean hasNext() {
+                                return node != null;
+                            }
+                            @Override public Node next() {
                                 if (!hasNext()) {
                                     throw new NoSuchElementException();
                                 }
-                                Attr attr = (Attr)elt.getAttributes().item(i);
-                                Node node = new Proxy(attr, attr.getName(), -1);
-                                i++;
-                                return node;
+                                Proxy out = new Proxy(node, index);
+                                step();
+                                return out;
+                            }
+                            @Override public void remove() {
+                                throw new UnsupportedOperationException();
+                            }
+                            private void step() {
+                                if (node == null) {
+                                    node = proxy.getFirstChild();
+                                    index = 0;
+                                } else {
+                                    node = node.getNextSibling();
+                                    index++;
+                                }
+                                if (key != null) {
+                                    while (node != null && !(node instanceof Element && node.getNodeName().equals(key))) {
+                                        node = node.getNextSibling();
+                                        index++;
+                                    }
+                                }
                             }
                         };
+                    }
+                }
+            } else if (keyobj instanceof Integer) {
+                if (proxy instanceof Element) {
+                    final int index = ((Integer)keyobj).intValue();
+                    org.w3c.dom.Node n;
+                    int i = index;
+                    for (n = proxy.getFirstChild();n!=null && i-- > 0;n=n.getNextSibling());
+                    if (n != null) {
+                        return Collections.<Node>singletonList(new Proxy(n, index)).iterator();
                     } else {
-                        Attr attr = elt.getAttributeNode(key.substring(1));
-                        if (attr != null) {
-                            return Collections.<Node>singleton(new Proxy(attr, attr.getName(), -1)).iterator();
-                        }
-                    }
-                } else {
-                    return new Iterator<Node>() {
-                        org.w3c.dom.Node node;
-                        {
-                            node = proxy.getFirstChild();
-                            while (node != null && !(node instanceof Element && (key.equals("*") || node.getNodeName().equals(key)))) {
-                                node = node.getNextSibling();
-                            }
-                        }
-                        public boolean hasNext() {
-                            return node != null;
-                        }
-                        public Node next() {
-                            if (!hasNext()) {
-                                throw new NoSuchElementException();
-                            }
-                            Proxy out = new Proxy(node, key.equals("*") ? node.getNodeName() : key, -1);
-                            node = node.getNextSibling();
-                            while (node != null && !(node instanceof Element && (key.equals("*") || node.getNodeName().equals(key)))) {
-                                node = node.getNextSibling();
-                            }
-                            return out;
-                        }
-                        public void remove() {
-                            throw new UnsupportedOperationException();
-                        }
-                    };
-                }
-            }
-            return null;
-        }
-
-        public Iterator<Node> get(int key) {
-            if (proxy instanceof Element) {
-                int i = key;
-                for (org.w3c.dom.Node n=proxy.getFirstChild();n!=null;n=n.getNextSibling()) {
-                    if (n instanceof Element && i-- == 0) {
-                        return Collections.<Node>singleton(new Proxy(n, null, key)).iterator();
+                        return Collections.<Node>emptySet().iterator();
                     }
                 }
             }
             return null;
         }
 
-        public Node parent() {
+        @Override public Node parent() {
             org.w3c.dom.Node node = proxy instanceof Attr ? ((Attr)proxy).getOwnerElement() : proxy.getParentNode();
-            return node instanceof Element ? new Proxy(node, null, -1) : null;
+            return node instanceof Element ? new Proxy(node, UNKNOWN_INDEX) : null;
         }
 
-        public String stringValue() {
+        @Override public String stringValue() {
             return proxy.getTextContent();
         }
 
-        public double doubleValue() {
+        @Override public double doubleValue() {
             return Double.NaN;
         }
 
-        public boolean booleanValue() {
+        @Override public boolean booleanValue() {
             return true;
         }
 
-        public boolean equals(Object o) {
+        @Override public boolean equals(Object o) {
             return o instanceof Proxy && ((Proxy)o).proxy == proxy;
         }
 
-        public int hashCode() {
+        @Override public int hashCode() {
             return proxy.hashCode();
         }
 
-        public String key() {
-            return key;
-        }
-
-        public int index() {
-            return index;
-        }
-
-        public Object proxy() {
-            return proxy;
-        }
-
-        public String type() {
+        @Override public Object key() {
             if (proxy instanceof org.w3c.dom.Element) {
-                return "element";
+                return proxy.getNodeName();
+            } else if (proxy instanceof org.w3c.dom.Attr) {
+                return ((Attr)proxy).getName();
             } else {
-                return "text";
+                return null;
             }
-            /*
-            if (proxy.isString()) {
-                return "string";
-            } else if (proxy.isNumber()) {
-                return "number";
-            } else if (proxy.isBoolean()) {
-                return "boolean";
-            } else if (proxy.isMap()) {
-                return "map";
-            } else if (proxy.isList()) {
-                return "list";
-            } else if (proxy.isNull()) {
-                return "null";
-            } else if (proxy.isUndefined()) {
-                return "undef";
-            } else if (proxy.isBuffer()) {
-                return "buffer";
-            } else {
-                return "unknown";       // Shouldn't happen
-            }
-            */
         }
 
-        public String toString() {
-            return proxy.toString(); //  + (key != null ? "#KEY="+key : index >= 0 ? "#INDEX="+index : "");
-        }
-
-    }
-
-    /**
-     * The "tag" function offers a way to retrieve the CBOR tag from any object
-    private static class FunctionTag implements Function {
-
-        public String getName() {
-            return "tag";
-        }
-
-        public boolean verify(List<Term> arguments) {
-            return true;
-        }
-
-        public String toString() {
-            return getName() + "()";
-        }
-
-        public void eval(final List<Term> arguments, final Collection<Node> in, final Collection<Node> out, final Configuration config) {
-            if (config.isDebug()) {
-                config.debug(this + " " + arguments + " ctx=" + in);
-            }
-            Set<Node> nodes = new HashSet<Node>();
-            for (Term t : arguments) {
-                t.eval(in, nodes, config.debugIndent());
-            }
-            for (Node node : nodes) {
-                if (node.proxy() instanceof Json) {
-                    Json json = (Json)node.proxy();
-                    long tag = json.getTag();
-                    if (tag >= 0) {
-                        out.add(Node.create(tag));
+        @Override public int index() {
+            if (index == UNKNOWN_INDEX) {
+                index = -1;
+                if (parent() != null) {
+                    int i = 0;
+                    for (org.w3c.dom.Node n = proxy.getParentNode().getFirstChild();n!=null;n=n.getNextSibling()) {
+                        if (n == proxy) {
+                            index = i;
+                            break;
+                        }
+                        i++;
                     }
                 }
             }
+            return index;
         }
 
-    }
-     */
+        @Override public Object proxy() {
+            return proxy instanceof Attr ? ((Attr)proxy).getValue() : proxy;
+        }
 
+        @Override public String type() {
+            if (proxy instanceof org.w3c.dom.Element) {
+                return "element";
+            } else if (proxy instanceof org.w3c.dom.Attr) {
+                return "attr";
+            } else if (proxy instanceof org.w3c.dom.Text) {
+                return "text";
+            } else if (proxy instanceof org.w3c.dom.Comment) {
+                return "comment";
+            } else if (proxy instanceof org.w3c.dom.ProcessingInstruction) {
+                return "processing-instruction";
+            } else {    // Meh
+                return "node";
+            }
+        }
+
+        @Override public String toString() {
+            return proxy.toString(); //  + (name != null ? "#KEY="+name : index >= 0 ? "#INDEX="+index : "");
+        }
+    }
 
 }

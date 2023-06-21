@@ -9,16 +9,27 @@ import java.util.*;
  */
 public class ZPath {
 
-    private final Term term;
+    // Delimiters break parsing of a name component in a path
+    static final String PATH_DELIMITERS = " \t\r\n()[]/,=&|!<>#";
+    static final String NUMBER_DELIMITERS = PATH_DELIMITERS + "*/+-&|!=<>";
+
+    private final List<Term> terms;
     private final Configuration config;
 
-    private ZPath(Term term, Configuration config) {
-        this.term = term;
+    private ZPath(List<Term> terms, Configuration config) {
+        this.terms = terms;
         this.config = config;
     }
 
     public String toString() {
-        return term.toString();
+        StringBuilder sb = new StringBuilder();
+        for (int i=0;i<terms.size();i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(terms.get(i).toString());
+        }
+        return sb.toString();
     }
 
     /**
@@ -30,6 +41,18 @@ public class ZPath {
      */
     public static ZPath compile(String value) {
         return compile(value, null);
+    }
+
+    public int hashCode() {
+        return toString().hashCode();
+    }
+
+    public boolean equals(Object o) {
+        return o instanceof ZPath && toString().equals(o.toString());
+    }
+
+    public Configuration getConfiguration() {
+        return config;
     }
 
     /**
@@ -45,27 +68,56 @@ public class ZPath {
             config = Configuration.getDefault();
         }
         config = new Configuration(config);     // So it can be modified if required
-        if (config.isDebug()) {
-            config = config.debugIndent();
-            config.depth = 0;
-        }
-        if (config.isDebug()) {
-            config.debug("ZPath.compile \"" + value + "\"");
+        final Configuration.Logger logger = config.getLogger();
+        if (logger != null) {
+            logger.log("ZPath.compile \"" + value + "\"");
         }
         CursorList<Term> in = tokenize(value);
-        if (config.isDebug()) {
-            config.debugIndent().debug("tokens:");
-            config.debugIndent().debugIndent().debug(in.toString());
+        if (logger != null) {
+            logger.enter();
+            logger.log("tokens:");
+            logger.enter();
+            logger.log(in.toString());
+            logger.exit();
+            logger.exit();
         }
-//        System.out.println("T="+in);
-        if (config.isDebug()) {
-            config.debugIndent().debug("ast:");
+        // Trim whitespace from start and end
+        if (in.size() > 0 && in.get(0) == Term.WS) {
+            in.remove(0);
         }
-        Term term = parseOperand(in, config.debugIndent().debugIndent());
-        if (in.tell() != in.size()) {
-            error(in, "bad token");
+        if (in.size() > 0 && in.get(in.size() - 1) == Term.WS) {
+            in.remove(in.size() - 1);
         }
-        return new ZPath(term, config);
+        if (logger != null) {
+            logger.enter();
+            logger.log("ast:");
+            logger.enter();
+        }
+        try {
+            List<Term> terms = new ArrayList<Term>();
+            terms.add(parseExpression(in, config));
+            while (in.peek() == Term.COMMA) {
+                in.next();
+                while (in.peek() == Term.WS) {
+                    in.next();
+                }
+                terms.add(parseExpression(in, config));
+            }
+            if (in.tell() != in.size()) {
+                throw error(in, "bad token");
+            }
+            if (logger != null) {
+                for (Term term : terms) {
+                    term.log(logger);
+                }
+            }
+            return new ZPath(terms, config);
+        } finally {
+            if (logger != null) {
+                logger.exit();
+                logger.exit();
+            }
+        } 
     }
 
     /**
@@ -88,40 +140,8 @@ public class ZPath {
      * @return a List of objects that match the specified ZPath, or an empty list if no objects are found
      */
     public List<Object> eval(Object object) {
-        if (object == null) {
-            throw new IllegalArgumentException("Object is null");
-        }
-        Node node = null;
-        if (object instanceof Node) {
-            node = (Node)object;
-        } else {
-            for (NodeFactory factory : config.getFactories()) {
-                node = factory.create(object, config);
-                if (node != null) {
-                    break;
-                }
-            }
-        }
-        if (node == null) {
-            throw new IllegalArgumentException("Can't create Node from " + object);
-        }
-        List<Node> out = new ArrayList<Node>();
-        if (config.isDebug()) {
-            config.debug("ZPath.eval " + node);
-        }
-        Configuration config = this.config.debugIndent();
-        term.eval(Collections.<Node>singleton(node), out, config);
-        if (config.isDebug()) {
-            if (out.isEmpty()) {
-                config.debug("result: no matches");
-            } else {
-                config.debug("result:");
-                config = config.debugIndent();
-                for (Node n : out) {
-                    config.debug(n.toString());
-                }
-            }
-        }
+        Node node = config.toNode(object);
+        List<Node> out = evalNode(node); 
         List<Object> oout = new ArrayList<Object>(out.size());
         for (Node n : out) {
             oout.add(n.proxy());
@@ -140,93 +160,228 @@ public class ZPath {
         return l.isEmpty() ? null : l.get(0);
     }
 
-    private static void error(CursorList<Term> in, String err) {
-        throw new IllegalStateException("Error: " + err + " " + in);
+    /**
+     * <p>
+     * Evaluate this ZPath against the supplied Node.
+     * The return value is a list of Nodes that match the specified expression;
+     * they may be reachable from the supplied Node, or they may be constants
+     * (Strings, Numbers, Boolean) if the ZPath evaluates to that type of object.
+     * </p><p>
+     * If no nodes are found, an empty list is returned.
+     * </p>
+     */
+    public List<Node> evalNode(Node node) {
+        if (node == null) {
+            throw new IllegalArgumentException("Node is null");
+        }
+        List<Node> out = new ArrayList<Node>();
+        try {
+            if (config.getLogger() != null) {
+                config.getLogger().log("ZPath.eval " + node);
+                config.getLogger().enter();
+            }
+            for (Term term : terms) {
+                term.eval(Collections.<Node>singletonList(node), out, config);
+            }
+            if (config.getLogger() != null) {
+                if (out.isEmpty()) {
+                    config.getLogger().log("result: no matches");
+                } else {
+                    config.getLogger().log("result:");
+                    config.getLogger().enter();
+                    for (Node n : out) {
+                        config.getLogger().log(n.toString());
+                    }
+                    config.getLogger().exit();
+                }
+            }
+        } finally {
+            if (config.getLogger() != null) {
+                config.getLogger().exit();
+            }
+        }
+        return out;
+    }
+
+    private static IllegalStateException error(CursorList<Term> in, String err) {
+        return new IllegalStateException("Error: " + err + " " + in);
     }
 
     private static Path parsePath(CursorList<Term> in, Configuration config) {
         int i, len = in.size();
         List<Axis> out = new ArrayList<Axis>();
         Term t;
-        boolean first = true;
+        boolean first = true, slash = false, root = false;
+        StringBuilder sb = new StringBuilder();
         while ((t=in.next()) != null) {
 //            System.out.println("* t="+t);
             if (t.isName()) {
-                out.add(Axis.axisName(t.value));
-            } else if (t.isInteger() && !first) {
-                out.add(Axis.axisIndex(Integer.parseInt(t.value)));
-            } else if (t == Term.STAR) {
-                out.add(Axis.axisName(t.value));
-            } else if (t == Term.STARSTAR) {
-                out.add(Axis.SELFORANYDESCENDENT);
-            } else if (t == Term.AT) {
-                out.add(Axis.KEY);
-            } else if (t == Term.DOTDOT) {
-                out.add(Axis.PARENT);
-            } else if (t == Term.DOT) {
-                out.add(Axis.SELF);
-            } else if (t == Term.LBRACE) {
-                int start = in.tell(), d = 1;
-                while ((t=in.next()) != null) {
-                    if (t == Term.LBRACE) {
-                        d++;
-                    } else if (t == Term.RBRACE) {
-                        if (--d == 0) {
-                            break;
+                if (!first && !slash) {
+                    throw error(in, "bad path");
+                } else {
+                    String name = t.value;
+                    for (int j=0;j<name.length();j++) {
+                        char c = name.charAt(j);
+                        if (c == '\n') {
+                            sb.append("\\n");
+                        } else if (c == '\r') {
+                            sb.append("\\r");
+                        } else if (c == '\t') {
+                            sb.append("\\t");
+                        } else if (c == '\\' || PATH_DELIMITERS.indexOf(c) >= 0) {
+                            sb.append("\\");
+                            sb.append(c);
+                        } else {
+                            sb.append(c);
                         }
                     }
-                }
-                if (d == 0) {
-                    CursorList<Term> sub = in.sub(start, in.tell() - 1);
-                    Term ex = parseExpression(sub, config);
-                    if (sub.tell() != sub.size()) {
-                        error(in, "expression failed");
+                    int index = in.peek() != null && in.peek().isIndex() ? in.next().indexValue() : Axis.ANYINDEX;
+                    if (index >= 0) {
+                        sb.append("#" + index);
                     }
-                    out.add(Axis.axisMatch(ex));
+                    out.add(Axis.axisKey(t.value, index));
+                }
+                root = slash = false;
+            } else if (t.isIndex()) {
+                if (!first && !slash) {
+                    throw error(in, "bad path");
+                } else if (in.peek() != null && in.peek().isIndex()) {         // Matches #1#2, required for bags of items keyed on integer (eg CBOR)
+                    int index = in.next().indexValue();
+                    sb.append("#" + t.indexValue());
+                    sb.append("#" + index);
+                    out.add(Axis.axisKey(t.indexValue(), index));
                 } else {
-                    in.seek(start - 1);
-                    error(in, "mismatched brace");
+                    out.add(Axis.axisKey(null, t.indexValue()));
+                    sb.append("#" + t.indexValue());
                 }
+                root = slash = false;
+            } else if (t == Term.STAR) {
+                if (!first && !slash) {
+                    throw error(in, "bad path");
+                } else {
+                    int index = in.peek() != null && in.peek().isIndex() ? in.next().indexValue() : Axis.ANYINDEX;
+                    out.add(Axis.axisKey(Node.WILDCARD, index));
+                    sb.append(t.toString());
+                }
+                root = slash = false;
+            } else if (t == Term.STARSTAR) {
+                if (!first && !slash) {
+                    throw error(in, "bad path");
+                } else {
+                    out.add(Axis.SELFORANYDESCENDENT);
+                    sb.append(t.toString());
+                }
+                root = slash = false;
+            } else if (t == Term.DOTDOT) {
+                if (!first && !slash) {
+                    throw error(in, "bad path");
+                } else {
+                    out.add(Axis.PARENT);
+                    sb.append(t.toString());
+                }
+                root = slash = false;
+            } else if (t == Term.DOT) {
+                if (!first && !slash) {
+                    throw error(in, "bad path");
+                } else {
+                    out.add(Axis.SELF);
+                    sb.append(t.toString());
+                }
+                root = slash = false;
+            } else if (t.isFunction()) {
+                if (!first && !slash) {
+                    throw error(in, "bad path");
+                } else {
+                    in.seek(in.tell() - 1);
+                    Term function = parseFunction(in, config, true);
+                    out.add(function);
+                    sb.append(function.toString());
+                }
+                root = slash = false;
+            } else if (t == Term.LBRACE) {
+                if (!first && slash && !root) {
+                    throw error(in, "bad path");
+                } else {
+                    int start = in.tell(), d = 1;
+                    while ((t=in.next()) != null) {
+                        if (t == Term.LBRACE) {
+                            d++;
+                        } else if (t == Term.RBRACE) {
+                            if (--d == 0) {
+                                break;
+                            }
+                        }
+                    }
+                    if (d == 0) {
+                        CursorList<Term> sub = in.sub(start, in.tell() - 1);
+                        Term ex = parseExpression(sub, config);
+                        if (sub.tell() != sub.size()) {
+                            throw error(in, "expression failed");
+                        }
+                        out.add(Axis.axisMatch(ex));
+                        sb.append('[');
+                        sb.append(ex);
+                        sb.append(']');
+                    } else {
+                        in.seek(start - 1);
+                        throw error(in, "mismatched brace");
+                    }
+                }
+                slash = false;
             } else if (t == Term.SLASH) {
-                if (first) {
+                if (slash) {
+                    throw error(in, "bad path");
+                } else if (first) {
                     out.add(Axis.ROOT);
+                    root = true;
                 }
-                t = in.peek();
-                if (t != null && t != Term.DOT && t != Term.DOTDOT && !t.isInteger() && !t.isName() && t != Term.AT && t != Term.STARSTAR && t != Term.STAR && !(t == Term.LBRACE && first)) {
-                    error(in, "can't follow slash");     // Not recoverable
-                }
-                t = in.peek();
+                sb.append('/');
+                slash = true;
             } else {
                 in.seek(in.tell() - 1);
                 break;
             }
             first = false;
         }
-        return out.isEmpty() ? null : new Path(out);
+        if (slash && !root) {
+            throw error(in, "bad path: ends with slash");
+        } else if (out.isEmpty()) {
+            return null;
+        } else {
+            return new Path(out, sb.toString());
+        }
     }
 
-    private static Term parseFunction(CursorList<Term> in, Configuration config) {
+    private static Term parseFunction(CursorList<Term> in, Configuration config, boolean path) {
         Term t;
         List<Term> args = new CursorList<Term>();
         String name = in.next().value;
-        while ((t=in.next()) != null && t != Term.RPAREN) {
-            Term parsed = parseOperand(new CursorList<Term>(Collections.<Term>singleton(t)), config);
-            if (parsed == null) {
-                parsed = t;
+        int start = in.tell();
+        while ((t=in.peek()) != null && t != Term.RPAREN) {
+            if (t == Term.WS) {
+                in.next();
+            } else {
+                args.add(parseExpression(in, config));
+                if ((t=in.peek()) == Term.COMMA) {
+                    in.next();
+                } else if (t != Term.RPAREN) {
+                    throw error(in.seek(start), "invalid function arguments for \"" + name + "\"");
+                }
             }
-            args.add(parsed);
         }
         if (t == null) {
-            error(in, "missing rparen");
+            throw error(in, "missing rparen");
+        } else {
+            in.next();
         }
         Function f = config.getFunction(name);
         if (f == null) {
             f = new FunctionAxis.Dynamic(name);     // Fail now or later?
         }
         if (!f.verify(args)) {
-            error(in.seek(in.tell() - 1), "invalid function arguments for \"" + name + "\"");
+            throw error(in.seek(in.tell() - 1), "invalid function arguments for \"" + name + "\"");
         }
-        return new FunctionAxis(f, args);
+        return new FunctionAxis(f, args, path);
     }
 
     private static Term parseOperand(CursorList<Term> in, Configuration config) {
@@ -234,25 +389,36 @@ public class ZPath {
         if (t.isInteger() || t.isReal() || t.isString()) {
             return in.next();
         } else if (t.isFunction()) {
-            return parseFunction(in, config);
+            return parseFunction(in, config, false);
         } else {
             return parsePath(in, config);
         }
     }
 
+    /**
+     * Parse a single expression from the list "in"
+     */
     private static Term parseExpression(CursorList<Term> in, Configuration config) {
         final int tell = in.tell();
         Stack<Term> stack = new Stack<Term>();
         List<Term> out = new ArrayList<Term>();
-        // First convert infix->postfix with stack
-        // https://www2.cs.arizona.edu/classes/cs127b/fall15/infix.pdf
+        // First convert infix->postfix with stack.
+        // Shunting yard algo with special handling for middle term of ternary a?b:c (wrap b in paren), unary,
+        // Also identify where what is usually an operator (*, / etc) is actually an operand because its part of a path
         Term t;
-        while ((t=in.next()) != null) {
+        Term operand = null, operator = null;
+        boolean expectingOperand = true;
+        while ((t=in.next()) != null && t != Term.COMMA) {
+            final Term ft = t;
             if (t == Term.WS) {
+                operand = operator = null;
                 // noop
             } else if (t == Term.LPAREN) {
+                operand = operator = null;
                 stack.add(t);
-            } else if (t == Term.RPAREN) {
+                expectingOperand = true;
+            } else if (t == Term.RPAREN || t == Term.COLON) {
+                operand = operator = null;
                 while (!stack.isEmpty()) {
                     t = stack.pop();
                     if (t == Term.LPAREN) {
@@ -263,53 +429,83 @@ public class ZPath {
                     }
                 }
                 if (t != null) {
-                    error(in, "Unbalanced close brace");
+                    break;
                 }
-            } else if (t.score > 0 && !(t == Term.SLASH && in.peek().isName())) {
-                Term t2;
-                while (!stack.isEmpty() && ((t2=stack.peek()).score <= t.score)) {
+                t = ft;
+                expectingOperand = false;
+            } 
+            if (t.isUnaryOperator()) {
+                stack.add(t);
+                expectingOperand = true;
+            } else if (t.isBinaryOperator() && !expectingOperand) {
+                operator = t;
+                if (operand != null) {
+                    throw error(in.seek(tell), "invalid expression: no whitespace between " + operand + " and '" + operator + "'");
+                }
+                while (!stack.isEmpty() && (t=stack.peek()).isOperator() && t.compareTo(operator) <= 0) {
                     out.add(stack.pop());
                 }
-                stack.add(t);
-            } else {
+                stack.add(operator);
+                if (operator == Term.QUESTION) {
+                    stack.add(Term.LPAREN);
+                }
+                expectingOperand = true;
+            } else if (t != Term.WS && t != Term.LPAREN && t != Term.RPAREN) { 
                 in.seek(in.tell() - 1);
-                Term op = parseOperand(in, config);
-                if (op != null) {
-                    out.add(op);
-                    while (!stack.isEmpty() && stack.peek().isUnary()) {     // unary operator special handling
-                        out.add(stack.pop());
+                operand = parseOperand(in, config);
+                if (operand != null) {
+                    if (operator != null) {
+                        throw error(in.seek(tell), "invalid expression: no whitespace between " + operator + " and '" + operand + "'");
                     }
+                    out.add(operand);
+                    expectingOperand = false;
                 } else {
                     break;
                 }
             }
+//            System.out.println("* " + ft + ": stack="+stack+" out="+out+" expectingOperand="+expectingOperand);
         }
         while (!stack.isEmpty()) {
             out.add(stack.pop());
         }
 
+        if (t != null) {
+            // Terminating token, not EOD - back up one
+            in.seek(in.tell() - 1);
+        }
         // Now convert our postfix stack to single term
         for (int i=0;i<out.size();i++) {
             t = out.get(i);
-            if (t.score > 0) {
-                if (t.isUnary() && stack.size() > 0) {
-                    Term a = stack.pop();
-                    t = new Calc(a, t, null);
-                    stack.add(t);
-                } else if (stack.size() > 1) {
-                    Term b = stack.pop();
-                    Term a = stack.pop();
-                    t = new Calc(a, t, b);
-                    stack.add(t);
-                } else {
-                    error(in.seek(tell), "invalid expression");
+            if (t == Term.QUESTION) {
+                // do nothing
+                stack.add(t);
+            } else if (t == Term.COLON && stack.size() >= 4) {
+                Term c = stack.pop();
+                Term q = stack.pop();
+                Term b = stack.pop();
+                Term a = stack.pop();
+                if (q != Term.QUESTION) {
+                    throw error(in.seek(tell), "invalid ternary expression: (" + a + " " + q + " " + b + " : " + c + ")");
                 }
+                t = new Expr(q, a, b, c);
+                stack.add(t);
+            } else if (t.isUnaryOperator() && stack.size() >= 1) {
+                Term a = stack.pop();
+                t = new Expr(t, a, null);
+                stack.add(t);
+            } else if (t.isBinaryOperator() && stack.size() >= 2) {
+                Term b = stack.pop();
+                Term a = stack.pop();
+                t = new Expr(t, a, b);
+                stack.add(t);
+            } else if (t.isOperator()) {
+                throw error(in.seek(tell), "invalid expression");
             } else {
                 stack.add(t);
             }
         }
         if (stack.size() != 1) {
-            error(in.seek(tell), "invalid expression");
+            throw error(in.seek(tell), "invalid expression " + stack);
         }
         t = stack.pop();
         return t;
@@ -342,6 +538,28 @@ public class ZPath {
                 tokens.add(Term.LPAREN);
             } else if (c == ')') {
                 tokens.add(Term.RPAREN);
+            } else if (c == '?') {
+                tokens.add(Term.QUESTION);
+            } else if (c == '%') {
+                tokens.add(Term.PERCENT);
+            } else if (c == ',') {
+                tokens.add(Term.COMMA);
+            } else if (c == ':') {
+                tokens.add(Term.COLON);
+            } else if (c == ',') {
+                tokens.add(Term.COMMA);
+            } else if (c == '#' && i + 1 < len && in.codePointAt(i + 1) <= '9' && in.codePointAt(i + 1) >= '0') {
+                int start = ++i;
+                for (;i<len;i++) {
+                    c = in.codePointAt(i);
+                    if (PATH_DELIMITERS.indexOf(c) >= 0) {
+                        break;
+                    } else if (c < '0' || c > '9') {
+                        throw error(in, i, "bad index");
+                    }
+                }
+                tokens.add(Term.newIndex(Integer.parseInt(in.substring(start, i))));
+                i--;
             } else if (c == '+') {
                 tokens.add(Term.PLUS);
             } else if (c == '-' && (i + 1 == len || in.codePointAt(i + 1) > '9' || in.codePointAt(i + 1) < '0')) {
@@ -379,8 +597,6 @@ public class ZPath {
             } else if (c == '=' && i + 1 < len && in.codePointAt(i + 1) == '=') {
                 tokens.add(Term.EQ);
                 i++;
-            } else if (c == '@' && (i + 1 == len || Term.DELIMITERS.indexOf(in.codePointAt(i + 1)) >= 0)) {
-                tokens.add(Term.AT);
             } else if (c == '>') {
                 if (i + 1 < len && in.codePointAt(i + 1) == '=') {
                     tokens.add(Term.GE);
@@ -415,7 +631,7 @@ public class ZPath {
                     }
                 }
                 if (i == len) {
-                    throw new IllegalArgumentException("Tokenzation error at " + i + ": EOF");
+                    throw error(in, i, "EOF");
                 } else {
                     tokens.add(Term.newString(sb.toString()));
                 }
@@ -429,26 +645,25 @@ public class ZPath {
                     c = in.codePointAt(i);
                     if (c == '.' && integer) {
                         integer = false;
-                    } else if (Term.DELIMITERS.indexOf(c) >= 0) {
+                    } else if (NUMBER_DELIMITERS.indexOf(c) >= 0) {
                         break;
                     } else if (c < '0' || c > '9') {
-                        throw new IllegalArgumentException("Tokenzation error at " + i + ": bad number starting at " + start);
+                        throw error(in, i, "bad number");
                     }
                 }
                 if (integer) {
-                    tokens.add(Term.newInteger(Integer.valueOf(in.substring(start, i)).toString()));
+                    tokens.add(Term.newInteger(Integer.parseInt(in.substring(start, i))));
                 } else {
-                    tokens.add(Term.newReal(Double.valueOf(in.substring(start, i)).toString()));
+                    tokens.add(Term.newReal(Double.parseDouble(in.substring(start, i))));
                 }
                 i--;
-            } else if (Character.isAlphabetic(c)) {
+            } else if (c == '\\' || Character.isAlphabetic(c) || c == '@') {
                 StringBuilder sb = new StringBuilder();
-                sb.appendCodePoint(c);
-                for (++i;i<len;i++) {
+                for (;i<len;i++) {
                     c = in.codePointAt(i);
                     if (c == '\\' && i + 1 < len) {
                         c = in.codePointAt(++i);
-                    } else if (Term.DELIMITERS.indexOf(c) >= 0) {
+                    } else if (c != '*' && PATH_DELIMITERS.indexOf(c) >= 0) {
                         break;
                     } else {
                         sb.appendCodePoint(c);
@@ -461,10 +676,44 @@ public class ZPath {
                     i--;
                 }
             } else {
-                throw new IllegalArgumentException("Tokenzation error at " + i + ": " + (c > 0x20 && c < 0x7f ? "\"" + ((char)c) + "\"" : "U+" + Integer.toHexString(c)));
+                throw error(in, i, "invalid character " + (c > 0x20 && c < 0x7f ? "\"" + ((char)c) + "\"" : "U+" + Integer.toHexString(c)));
             }
         }
         return tokens;
+    }
+
+    private static IllegalArgumentException error(String s, int index, String msg) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Tokenization error at " + index + "/" + s.length() + ": " + msg + " in \"");
+        for (int i=0;i<s.length();i++) {
+            int cp = s.codePointAt(i);
+            String t;
+            if (cp == '\n') {
+                t = "\\n";
+            } else if (cp == '\r') {
+                t = "\\r";
+            } else if (cp == '\t') {
+                t = "\\t";
+            } else if (cp == '\\') {
+                t = "\\\\";
+            } else if (Character.isLetterOrDigit(cp) || (cp >= 0x20 && cp <= 0x7f)) {
+                t = Character.toString(cp);
+            } else {
+                t = "\\u" + Integer.toHexString(cp);
+            }
+            if (i == index) {
+                for (int j=0;j<t.length();) {
+                    cp = t.codePointAt(j);
+                    sb.appendCodePoint(cp);
+                    sb.append("\u0332");
+                    j += cp < 0x10000 ? 2 : 1;
+                }
+            } else {
+                sb.append(t);
+            }
+        }
+        sb.append('"');
+        return new IllegalArgumentException(sb.toString());
     }
 
 }

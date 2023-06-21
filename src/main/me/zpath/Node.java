@@ -25,27 +25,27 @@ import java.util.*;
  *   }
  *
  *   private static class Proxy implements Node {
- *     private final int index;
- *     private final String key;
+ *     private final Object key;
  *     private final MyClass proxy;
  *  
- *     Proxy(MyClass proxy, String key, int index) {
+ *     Proxy(MyClass proxy, Object key) {
  *       this.proxy = proxy;
  *       this.key = key;
- *       this.index = index;
  *     }
  *  
  *     public Node parent() {
  *       MyClass j = proxy.parent();
- *       return j == null ? null : new Proxy(proxy, null, -1);
+ *       return j == null ? null : new Proxy(proxy, null);
  *     }
  *  
- *     public Iterator<Node> get(String key) {
+ *     public Iterator<Node> get(Object key) {
  *       MyClass j = proxy.get(key);
- *       return j == null ? null : new Proxy(proxy, key, -1);
+ *       return j == null ? null : new Proxy(proxy, key);
  *     }
  *  
- *     public String key() {
+ *     public String name() {
+ *  
+ *     public String name() {
  *       return key;
  *     }
  *  
@@ -62,6 +62,8 @@ import java.util.*;
  * </code></pre>
  */
 public interface Node {
+
+    public static final Object WILDCARD = "*";
 
     /**
      * If the Node in not the root element of the structure, return the parent, otherwise return null
@@ -101,16 +103,7 @@ public interface Node {
      * the meaning of which is going to depend on the model, but is generally a wildcard.
      * @return the Node matching that value, or null if none found or it's not applicable
      */
-    public Iterator<Node> get(String name);
-
-    /**
-     * Return the child of this Node that is stored with the specified index,
-     * or <code>null</code> if this Node has no matching child, or no concept of children stored against a numeric index
-     * (i.e. its not a list).
-     * @param index the index, which may be any value
-     * @return the Node matching that value, or null if the value is out of range or it's not applicable
-     */
-    public Iterator<Node> get(int index);
+    public Iterator<Node> get(Object key);
 
     /**
      * Return the type of this Node. The values depend on the source language but we suggest at least
@@ -128,14 +121,12 @@ public interface Node {
      * This value is only used by the "@" axis
      * @return the key by which this Node is retrieved from its parent, or <code>null</code> if its not known or doesn't apply
      */
-    public String key();
+    public Object key();
 
     /**
-     * If this Node can be accessed by its {@link #parent parent} element by an index passed to {@link #get(int)},
-     * return the value of this index. This method may return <code>-1</code> for nodes not originally accessed
-     * from {@link #children} or {@link #get(String)}, such as nodes returned from {@link #parent}.
-     * This value is only used by the "@" axis
-     * @return the index by which this Node is retrieved from its parent, or <code>-1</code> if its not known or doesn't apply
+     * If this Node can be accessed via an index into its parent (ie. by passing an integer into get) and
+     * that integer really does represents an index rather than a numeric map key, then return the index, otherwise return -1.
+     * @return the index into this node's parent to retrieve this node, or -1
      */
     public int index();
 
@@ -146,158 +137,67 @@ public interface Node {
     public Object proxy();
 
     /**
-     * Create a new Node representing a boolean constant
-     * @param v the value
+     * Create a new Node representing an immutable constant.
+     * @param v the value, which would normally be a integer, double, boolean or String, but may be other types.
      * @return a new Node
      */
-    public static Node create(final boolean v) {
-        return new Node() {
-            public Node parent() {
-                return null;
-            }
-            public String stringValue() {
-                return v ? "true" : "false";
-            }
-            public double doubleValue() {
-                return Double.NaN;
-            }
-            public boolean booleanValue() {
-                return v;
-            }
-            public Iterator<Node> get(int i) {
-                return null;
-            }
-            public String key() {
-                return null;
-            }
-            public int index() {
-                return -1;
-            }
-            public String type() {
-                return "boolean";
-            }
-            public Iterator<Node> get(String i) {
-                return null;
-            }
-            public String toString() {
-                return stringValue();
-            }
-            public int hashCode() {
-                return v ? 1 : 0;
-            }
-            public boolean equals(Object o) {
-                return o instanceof Node && booleanValue() == ((Node)o).booleanValue();
-            }
-            public Object proxy() {
-                return v;
-            }
-        };
-    }
-
-    /**
-     * Create a new Node representing a number constant
-     * @param v the value
-     * @return a new Node
-     */
-    public static Node create(final Number v) {
-        if (v == null) {
-            throw new IllegalArgumentException();
+    public static Node create(Object v) {
+        final Object fv;
+        if (v instanceof Long && ((Long)v).intValue() == ((Long)v).longValue()) {
+            fv = Integer.valueOf(((Long)v).intValue());
+        } else if (v instanceof Character || v instanceof Short || v instanceof Byte) {
+            fv = Integer.valueOf(((Number)v).intValue());
+        } else if (v instanceof CharSequence) {
+            fv = v.toString();
+        } else if (v instanceof Float) {
+            fv = Double.valueOf(((Float)v).floatValue());
+        } else {
+            fv = v;
         }
         return new Node() {
-            public Node parent() {
+            @Override public Node parent() {
                 return null;
             }
-            public String stringValue() {
-                return v.toString();
+            @Override public String stringValue() {
+                return fv.toString();
             }
-            public double doubleValue() {
-                return v.doubleValue();
+            @Override public double doubleValue() {
+                return fv instanceof Number ? ((Number)fv).doubleValue() : Double.NaN;
             }
-            public boolean booleanValue() {
-                return false;
+            @Override public boolean booleanValue() {
+                return fv instanceof Boolean ? ((Boolean)fv).booleanValue() : false;
             }
-            public Iterator<Node> get(int i) {
+            @Override public Object key() {
                 return null;
             }
-            public Iterator<Node> get(String i) {
-                return null;
-            }
-            public String key() {
-                return null;
-            }
-            public int index() {
+            @Override public int index() {
                 return -1;
             }
-            public String type() {
-                return "number";
-            }
-            public String toString() {
-                return stringValue();
-            }
-            public int hashCode() {
-                if (v.intValue() == v.doubleValue()) {
-                    return v.intValue();
+            @Override public String type() {
+                if (fv instanceof Boolean) {
+                    return "boolean";
+                } else if (fv instanceof Number) {
+                    return "number";
+                } else if (fv instanceof String) {
+                    return "string";
                 } else {
-                    return v.hashCode();
+                    return fv.getClass().getName();
                 }
             }
-            public boolean equals(Object o) {
-                return o instanceof Node && doubleValue() == ((Node)o).doubleValue();
-            }
-            public Object proxy() {
-                return v;
-            }
-        };
-    }
-
-    /**
-     * Create a new Node representing a string constant
-     * @param v the value
-     * @return a new Node
-     */
-    public static Node create(String v) {
-        if (v == null) {
-            throw new IllegalArgumentException();
-        }
-        return new Node() {
-            public Node parent() {
+            @Override public Iterator<Node> get(Object key) {
                 return null;
             }
-            public String stringValue() {
-                return v.toString();
-            }
-            public double doubleValue() {
-                return Double.NaN;
-            }
-            public boolean booleanValue() {
-                return false;
-            }
-            public Iterator<Node> get(int i) {
-                return null;
-            }
-            public Iterator<Node> get(String i) {
-                return null;
-            }
-            public String key() {
-                return null;
-            }
-            public int index() {
-                return -1;
-            }
-            public String type() {
-                return "string";
-            }
-            public String toString() {
+            @Override public String toString() {
                 return stringValue();
             }
-            public int hashCode() {
-                return v.hashCode();
+            @Override public int hashCode() {
+                return fv.hashCode();
             }
-            public boolean equals(Object o) {
-                return o instanceof Node && stringValue().equals(((Node)o).stringValue());
+            @Override public boolean equals(Object o) {
+                return o instanceof Node && fv.equals(o);
             }
-            public Object proxy() {
-                return v;
+            @Override public Object proxy() {
+                return fv;
             }
         };
     }

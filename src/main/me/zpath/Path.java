@@ -5,70 +5,81 @@ import java.util.*;
 class Path extends Term {
 
     final List<Axis> path;
+    final String tostring;
 
-    Path(List<Axis> path) {
+    Path(List<Axis> path, String tostring) {
         this.path = path;
+        this.tostring = tostring;
     }
 
     @Override public String toString() {
-        StringBuilder sb = new StringBuilder();
-        for (int i=0;i<path.size();i++) {
-            Axis axis = path.get(i);
-            String t = axis.toString();
-            if (i > 0 && path.get(0) != Axis.ROOT && t.charAt(0) != '[') {
-                sb.append('/');
-            }
-            sb.append(t);
-        }
-        return sb.toString();
+        return "path(" + tostring + ")";
     }
 
-    @Override public void dump(Configuration config) {
-        config.debug("path: " + this);
-        config = config.debugIndent();
+    @Override public void log(Configuration.Logger logger) {
+        super.log(logger);
+        logger.enter();
         for (Axis axis : path) {
-            axis.dump(config);
+            axis.log(logger);
         }
+        logger.exit();
     }
 
     @Override public boolean isPath() {
         return true;
     }
 
-    @Override public void eval(final Collection<Node> in, final Collection<Node> out, Configuration config) {
-
+    @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
+        final Configuration.Logger logger = config.getLogger();
         List<Node> tmpin = new ArrayList<Node>();
         List<Node> tmpout = new ArrayList<Node>();
         tmpin.addAll(in);
         final int len = out.size();
-        if (config.isDebug()) {
-            config.debug(this + " test " + in);
+        if (logger != null) {
+            logger.log(this + " eval");
         }
-        for (int i=0;i<path.size();i++) {
-            Axis axis = path.get(i);
-            tmpout.clear();
-            if (config.isDebug()) {
-                config.debugIndent().debug("testing axis " + axis + " on " + tmpin.size() + " nodes");
+        try {
+            if (logger != null) {
+                logger.enter();
             }
-            axis.eval(tmpin, tmpout, config.debugIndent());
-            if (tmpout.isEmpty()) {
-                break;
-            }
-            tmpin.clear();
-            for (int j=0;j<tmpout.size();j++) {
-                Node n = tmpout.get(j);
-                if (!tmpin.contains(n)) {
-                    tmpin.add(n);
+            for (int i=0;i<path.size();i++) {
+                Axis axis = path.get(i);
+                tmpout.clear();
+                try {
+                    if (logger != null) {
+                        logger.log(axis + " eval on " + tmpin.size() + " nodes");
+                        logger.enter();
+                    }
+                    axis.eval(tmpin, tmpout, config);
+                } finally {
+                    if (logger != null) {
+                        logger.exit();
+                    }
+                }
+                if (tmpout.isEmpty()) {
+                    break;
+                }
+                tmpin.clear();
+                for (int j=0;j<tmpout.size();j++) {
+                    Node n = tmpout.get(j);
+                    if (!tmpin.contains(n)) {
+                        tmpin.add(n);
+                    }
                 }
             }
-        }
-        out.addAll(tmpout);
-        if (config.isDebug()) {
-            config = config.debugIndent();
-            config.debug("output: " + tmpout.size() + " nodes");
-            config = config.debugIndent();
-            for (Node n : tmpout) {
-                config.debug(n.toString());
+            out.addAll(tmpout);
+            if (logger != null) {
+                logger.log("output: " + tmpout.size() + " nodes");
+                logger.enter();
+                for (Node n : tmpout) {
+                    logger.log(n.toString());
+                }
+                logger.exit();
+            }
+            return out;
+        } finally {
+            if (logger != null) {
+                logger.exit();
             }
         }
     }
