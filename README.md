@@ -112,6 +112,7 @@ List<Object> match = ZPath.evaluate(context);
 
 * `org.w3c.dom.Node`
 * `com.bfo.json.Json` (see http://faceless2.github.io/json)
+* `com.google.gson.JsonElement` (see https://github.com/google/gson)
 
 
 ## FAQ
