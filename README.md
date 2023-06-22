@@ -41,7 +41,7 @@ Evaluation is relative to a _context node_.
 * a **qualifying expression** may never follow a `/` in a path unless it is the root `/`
 * a function is a **name** immediately followed by `(`, zero or more **arguments** seperated by commas, then a `)`
 * **arguments** depend on the function, but are typically **expressions**
-* that characters `\n \r \t ( ) [ ] / , = & | ! < > #` and space in a **name ** must be backslash-escaped
+* that characters `\n \r \t ( ) [ ] / , = & | ! < > #` and space in a **name** must be backslash-escaped
 * finally, the top-level expression _only_ may be a comma-separateed list of **expressions**
 
 ## ZPath Evaluation
