@@ -121,7 +121,7 @@ public interface EvalContext {
     public Configuration.Logger getLogger();
 
     /**
-     * Set the current "context" for this EvalContext.
+     * Set the current "context" for this EvalContext
      * @param index if nodeset is not null, the index of the current node into that nodeset
      * @param nodeset the current nodeset, which may be null
      */

@@ -73,13 +73,16 @@ Evaluation is relative to a _context node_.
 | `num(expression)` | for each node matched by **expression**, its number value |
 | `type()` | the type of this node as a string|
 | `type(expression)` | the type of each node mached by **expression**, or `"undefined"` if it is an empty set|
-
+| `eval(expression)` | evaluate the expression and add the results to the **node set** |
 
 Types depend on the object type, and is dependent on the backing implementation. It's recommended that:
 
 * JSON has `string`, `number`, `list`, `map`, `boolean` and `null`
 * CBOR has all those, and also `buffer`
 * XML has at least `element`, `text`, `processing-instruction` and `comment`
+
+The `eval(expression)` function is used in a path - for example, `item/eval(num(price) * num(quantity))` would
+return a list of numbers, each one value of the `price` * `quantity` children of each item.
 
 
 ### Math functions
@@ -103,17 +106,17 @@ Types depend on the object type, and is dependent on the backing implementation.
 import me.zpath.ZPath;
 
 Object context = ...;
-ZPath path = ZPath.compile("table/tr[td]")
-List<Object> match = ZPath.evaluate(context);
-// match contains Strings, Numbers, or objects reachable from the supplied context, or else it is empty
+ZPath path = ZPath.compile("table/tr[td]");
+List<Object> match = ZPath.evaluate(context).all();  // List of zero or more objects
+Object match = ZPath.evaluate(context).first();      // The first object matched, or null if it matched none
 ```
 
-`context` can be any type of object recognised by a `NodeFactory` registered with to the implementation. The API ships with implementations for:
+`context` can be any type of object recognised by an `EvalFactory` registered with the implementation. The API ships with implementations for:
 
 * `org.w3c.dom.Node`
 * `com.bfo.json.Json` (see http://faceless2.github.io/json)
 * `com.google.gson.JsonElement` (see https://github.com/google/gson)
-
+* `java.util.Map` and `java.util.Collection` - these are traversed without reflection (works with Jackson/Gson)
 
 ## FAQ
 

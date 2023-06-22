@@ -2,6 +2,14 @@ package me.zpath;
 
 import java.util.*;
 
+/**
+ * A list with a cursor and four methods to use it:
+ *
+ * next() - return the next item in the list, or null if none
+ * peek() - as next(), but don't move the cursor
+ * tell() - return the current position in the list
+ * seek() - set the current position in the list
+ */
 class CursorList<E> extends AbstractList<E> {
 
     private final CursorList<E> root;

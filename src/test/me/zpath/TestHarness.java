@@ -184,8 +184,11 @@ public class TestHarness {
 
     private static Object load(String type, String data) throws Exception {
         if (type.equals("JSON")) {
-//            return com.bfo.json.Json.read(data);
-            return com.google.gson.JsonParser.parseString(data);
+            return com.bfo.json.Json.read(data);                                                                // BFO JSON
+//            return com.google.gson.JsonParser.parseString(data);                                                // Gson JsonParser to JsonElement
+//            return new com.google.gson.Gson().fromJson(data, com.google.gson.JsonElement.class);                // Gson JsonParser to JsonElement
+//            return new com.google.gson.Gson().fromJson(data, java.util.Map.class);                              // Gson JsonParser to Collection
+//            return new com.fasterxml.jackson.databind.ObjectMapper().readerFor(Map.class).readValue(data);      // Jackson to Collection
         } else if (type.equals("CBOR")) {
             return com.bfo.json.Json.read(new StringReader(data), new com.bfo.json.JsonReadOptions().setCborDiag(true));
         } else if (type.equals("XML")) {
@@ -229,7 +232,11 @@ public class TestHarness {
      * @throws RuntimeException if the child is not found
      */
     private static Object child(Object parent, String key, int index) {
-        if (parent instanceof com.bfo.json.Json) {
+        if (parent instanceof Map) {
+            return key != null ? ((Map)parent).get(key) : ((Map)parent).get(index);
+        } else if (parent instanceof List) {
+            return ((List)parent).get(index);
+        } else if (parent instanceof com.bfo.json.Json) {
             com.bfo.json.Json child;
             if (key != null) {
                 child = ((com.bfo.json.Json)parent).get(key);
@@ -277,8 +284,9 @@ public class TestHarness {
                }
            }
            return child;
+        } else {
+            throw new RuntimeException();
         }
-        return null;
     }
 
 }

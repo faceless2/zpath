@@ -239,8 +239,8 @@ class Expr extends Term {
         String v;
         if (node == null) {
             v = null;
-        } else if (node instanceof String) {
-            v = (String)node;
+        } else if (node instanceof CharSequence) {
+            v = node.toString();
         } else if (node instanceof Number) {
             double d = ((Number)node).doubleValue();
             if (d == (int)d) {
@@ -260,7 +260,7 @@ class Expr extends Term {
         double v = Double.NaN;
         if (node instanceof Number) {
             v = ((Number)node).doubleValue();
-        } else if (!(node instanceof String || node instanceof Boolean || node == null)) {
+        } else if (!(node instanceof CharSequence || node instanceof Boolean || node == null)) {
             v = context.doubleValue(node);
         }
         return v;
@@ -271,7 +271,7 @@ class Expr extends Term {
             return false;
         } else if (node instanceof Boolean) {
             return ((Boolean)node).booleanValue();
-        } else if (node instanceof String || node instanceof Number) {
+        } else if (node instanceof CharSequence || node instanceof Number) {
             return true;
         } else {
             return context.booleanValue(node);
