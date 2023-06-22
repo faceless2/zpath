@@ -92,7 +92,7 @@ class CursorList<E> extends AbstractList<E> {
 
     public CursorList<E> seek(int off) {
         if (off < 0 || off > size()) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException(Integer.toString(off));
         }
         pos = off;
         return this;

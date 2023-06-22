@@ -401,9 +401,12 @@ public class ZPath {
         Term t;
         Term operand = null, operator = null;
         boolean expectingOperand = true;
-        while ((t=in.next()) != null && t != Term.COMMA) {
+        while ((t=in.next()) != null) {
             final Term ft = t;
-            if (t == Term.WS) {
+            if (t == Term.COMMA) {
+                in.seek(in.tell() - 1);     // backup
+                break;
+            } else if (t == Term.WS) {
                 operand = operator = null;
                 // noop
             } else if (t == Term.LPAREN) {
@@ -422,6 +425,7 @@ public class ZPath {
                     }
                 }
                 if (t != null) {
+                    in.seek(in.tell() - 1);     // read an extra rparen - backup
                     break;
                 }
                 t = ft;
@@ -445,6 +449,7 @@ public class ZPath {
                 expectingOperand = true;
             } else if (t != Term.WS && t != Term.LPAREN && t != Term.RPAREN) { 
                 in.seek(in.tell() - 1);
+                System.out.println("IN="+in);
                 operand = parseOperand(in, config);
                 if (operand != null) {
                     if (operator != null) {
@@ -453,6 +458,7 @@ public class ZPath {
                     out.add(operand);
                     expectingOperand = false;
                 } else {
+                    // not an operand; break;
                     break;
                 }
             }
@@ -462,10 +468,6 @@ public class ZPath {
             out.add(stack.pop());
         }
 
-        if (t != null) {
-            // Terminating token, not EOD - back up one
-            in.seek(in.tell() - 1);
-        }
         // Now convert our postfix stack to single term
         for (int i=0;i<out.size();i++) {
             t = out.get(i);
@@ -498,7 +500,7 @@ public class ZPath {
             }
         }
         if (stack.size() != 1) {
-            throw error(in.seek(tell), "invalid expression " + stack);
+            throw error(in.seek(tell), "invalid expression");
         }
         t = stack.pop();
         return t;
