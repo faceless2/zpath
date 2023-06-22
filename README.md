@@ -16,20 +16,20 @@ Evaluation is relative to a _context node_.
 | `../tr[is-first()]` | the same |
 | `../tr[index() == 0]` | the same |
 | `../tr[index() == 0]/td` | all `td` children of the same|
-| `**/tr[count(td) == 2]`| all nodes at or below the context node called `tr` with two `td` children |
+| `**/tr[count(td) == 2]`| all nodes at or below the context called `tr` with two `td` children |
 | `body[**/tr[count(td) == 2]]`| all `body` children that match the above description |
 | `car[!age \|\| type(age) == "null"]` | all `car` children where `age` is missing or set to `null`|
 | `car[!!age]` | all `car` children with child `age` not `null` or `false` |
 | `[key() != ix]` | all children where the key it's stored as in its parent != its `ix` value|
 | `list/*[index() % 2 == 0]` | every even-numbered child of the `list` child |
 | `car[is-first() ? "na" : age]` | for all `car` chidren, "na" if it's first, or its `age` child otherwise|
-| `count(tr/td)` | if evaluated on a table, the number of cells in the table (a single number) |
+| `count(tr/td)` | if evaluated on a table, the number of cells in the table (a number) |
 | `tr/count(td)` | the number of cells in each row of the table (a list of numbers) |
 | `table[@class == "defn"]` | all `table` children where the class attribute equals `defn` (XML only) |
 | `[@* == "defn"]` | all children where any attribute equals `defn` (XML only) |
 | `table/@class` | the class attribute of any `table` children, as a string (XML only) |
-| `**/fruitbowl/*, **/fruit`|all descendents where parent is `fruitbowl` or that are called `fruit`|
-| `union(**/fruitbowl/*, **/fruit)`|the same, but with duplicate nodes merged|
+| `**/bowl/*, **/fruit`|all descendents where parent is `bowl` or that are called `fruit`|
+| `union(**/bowl/*, **/fruit)`|the same, but with duplicate nodes merged|
 
 ## ZPath Parsing
 
