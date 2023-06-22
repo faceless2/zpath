@@ -2,7 +2,7 @@
 
 ZPath is a programmer-friendly syntax for searching structured objects. If you can navigate a filesystem and code an if-statement in C, Java or JavaScript, you already know 95% of the syntax.
 
-The grammar is universal: there's currently support for JSON, CBOR, and XML.
+The grammar is universal: there's currently support for JSON, CBOR, XML and Java Collections.
 
 Evaluation is relative to a _context node_.
 
