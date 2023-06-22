@@ -4,8 +4,8 @@ import java.util.*;
 
 class Path extends Term {
 
-    final List<Axis> path;
-    final String tostring;
+    private final List<Axis> path;
+    private final String tostring;
 
     Path(List<Axis> path, String tostring) {
         this.path = path;
@@ -29,10 +29,10 @@ class Path extends Term {
         return true;
     }
 
-    @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
-        final Configuration.Logger logger = config.getLogger();
-        List<Node> tmpin = new ArrayList<Node>();
-        List<Node> tmpout = new ArrayList<Node>();
+    @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
+        final Configuration.Logger logger = context.getLogger();
+        List<Object> tmpin = new ArrayList<Object>();
+        List<Object> tmpout = new ArrayList<Object>();
         tmpin.addAll(in);
         final int len = out.size();
         if (logger != null) {
@@ -50,7 +50,7 @@ class Path extends Term {
                         logger.log(axis + " eval on " + tmpin.size() + " nodes");
                         logger.enter();
                     }
-                    axis.eval(tmpin, tmpout, config);
+                    axis.eval(tmpin, tmpout, context);
                 } finally {
                     if (logger != null) {
                         logger.exit();
@@ -61,7 +61,7 @@ class Path extends Term {
                 }
                 tmpin.clear();
                 for (int j=0;j<tmpout.size();j++) {
-                    Node n = tmpout.get(j);
+                    Object n = tmpout.get(j);
                     if (!tmpin.contains(n)) {
                         tmpin.add(n);
                     }
@@ -71,7 +71,7 @@ class Path extends Term {
             if (logger != null) {
                 logger.log("output: " + tmpout.size() + " nodes");
                 logger.enter();
-                for (Node n : tmpout) {
+                for (Object n : tmpout) {
                     logger.log(n.toString());
                 }
                 logger.exit();

@@ -3,9 +3,13 @@ package me.zpath;
 import java.util.*;
 
 /**
+ * <p>
  * A term is a basic unit of the parsed ZPath, which may be a token like "<code>+</code>",
  * a string or number constant, a path like "<code>parent/child</code>", a function, or
- * an expression like "<code>(name=="test" || age+3 &lt; 5)</code>"
+ * an expression like "<code>(name=="test" || age+3 &lt; 5)</code>".
+ * </p><p>
+ * This class is only of interest to people implementing their own {@link Function}
+ * </p>
  */
 public class Term implements Axis {
 
@@ -290,7 +294,7 @@ public class Term implements Axis {
      * @return the value of the term as a string
      * @throws IllegalStateException if its not a string
      */
-    String stringValue() {
+    public String stringValue() {
         if (isString()) {
             return value;
         } else {
@@ -300,18 +304,18 @@ public class Term implements Axis {
 
     /**
      * Evaluate this Term.
-     * @param in the set of Nodes that are the current context - will never be empty
-     * @param out if this Term evaluates to one or more Nodes, they should be added to this collection
+     * @param in the set of Objects that are the current context - will never be empty
+     * @param out if this Term evaluates to one or more Objects, they should be added to this collection
      * @param config the configuration
      */
-    @Override public List<Node> eval(final List<Node> in, List<Node> out, Configuration config) {
-        Node n = null;
+    @Override public List<Object> eval(final List<Object> in, List<Object> out, EvalContext context) {
+        Object n = null;
         if (isString()) {
-            n = Node.create(value);
+            n = value;
         } else if (isInteger()) {
-            n = Node.create(Integer.parseInt(value));
+            n = Integer.parseInt(value);
         } else if (isReal()) {
-            n = Node.create(Double.parseDouble(value));
+            n = Double.parseDouble(value);
         }
         // Index types have been converted to paths already. They could get here if we allowed eg **[#1 == "x"], but we don't
         if (n != null) {

@@ -4,9 +4,8 @@ import java.util.*;
 
 class Expr extends Term {
 
-    private static final double MINDOUBLE = 0.0000001;
-    final Term lhs, rhs, rrhs;
-    final Term op;
+    private final Term lhs, rhs, rrhs;
+    private final Term op;
 
     Expr(Term op, Term lhs, Term rhs) {
         this(op, lhs, rhs, null);
@@ -21,11 +20,11 @@ class Expr extends Term {
 
     @Override public String toString() {
         if (rhs == null) {
-            return "(" + op + " " + lhs + ")";
+            return "expr(" + op + " " + lhs + ")";
         } else if (rrhs != null) {
-            return "(" + lhs + " " + op + " " + rhs + " : " + rrhs + ")";
+            return "expr(" + lhs + " " + op + " " + rhs + " : " + rrhs + ")";
         } else {
-            return "(" + lhs + " " + op + " " + rhs + ")";
+            return "expr(" + lhs + " " + op + " " + rhs + ")";
         }
     }
 
@@ -55,14 +54,14 @@ class Expr extends Term {
         return isNumber() && lhs.isInteger() && rhs.isInteger();
     }
 
-    private Node evalTermAsNode(final String name, final Term term, Node node, final List<Node> out, final Configuration config) {
-        final Configuration.Logger logger = config.getLogger();
+    private Object evalTermAsObject(final String name, final Term term, Object node, final List<Object> out, final EvalContext context) {
+        final Configuration.Logger logger = context.getLogger();
         try {
             if (logger != null) {
                 logger.log(this + " eval " + name + " term=" + term);
                 logger.enter();
             }
-            term.eval(Collections.<Node>singletonList(node), out, config);
+            term.eval(Collections.<Object>singletonList(node), out, context);
             if (!out.isEmpty()) {
                 node = out.iterator().next();
                 out.clear();
@@ -80,142 +79,142 @@ class Expr extends Term {
         return node;
     }
 
-    @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
-        final Configuration.Logger logger = config.getLogger();
-        for (Node node : in) {
+    @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
+        final Configuration.Logger logger = context.getLogger();
+        for (Object node : in) {
             try {
                 if (logger != null) {
                     logger.log(this + " eval " + node);
                     logger.enter();
                 }
 
-                Node result = null;
+                Object result = null;
                 if (op == Term.QUESTION) {
-                    Node ln = evalTermAsNode("test", lhs, node, out, config);
-                    boolean b = ln != null && ln.booleanValue();
+                    Object ln = evalTermAsObject("test", lhs, node, out, context);
+                    boolean b = booleanValue(context, ln);
                     if (b) {
-                        result = evalTermAsNode("truevalue", rhs, node, out, config);
+                        result = evalTermAsObject("truevalue", rhs, node, out, context);
                     } else {
-                        result = evalTermAsNode("falsevalue", rrhs, node, out, config);
+                        result = evalTermAsObject("falsevalue", rrhs, node, out, context);
                     }
                 } else if (op == Term.BANG) {
-                    Node ln = evalTermAsNode("op", lhs, node, out, config);
-                    boolean b = ln != null && ln.booleanValue();
-                    result = Node.create(!b);
+                    Object ln = evalTermAsObject("op", lhs, node, out, context);
+                    boolean b = booleanValue(context, ln);
+                    result = Boolean.valueOf(!b);
                 } else if (op == Term.PLUS) {
-                    Node ln = evalTermAsNode("lhs", lhs, node, out, config);
-                    Node rn = evalTermAsNode("rhs", rhs, node, out, config);
+                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
                     if (ln != null && rn != null) {
-                        double s = ln.doubleValue() + rn.doubleValue();
+                        double s = doubleValue(context, ln) + doubleValue(context, rn);
                         if (s == s) {
                             if (lhs.isInteger() && rhs.isInteger() && s == (int)s) {
-                                result = Node.create((int)s);
+                                result = Integer.valueOf((int)s);
                             } else {
-                                result = Node.create(s);
+                                result = Double.valueOf(s);
                             }
                         }
                     }
                 } else if (op == Term.MINUS) {
-                    Node ln = evalTermAsNode("lhs", lhs, node, out, config);
-                    Node rn = evalTermAsNode("rhs", rhs, node, out, config);
+                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
                     if (ln != null && rn != null) {
-                        double s = ln.doubleValue() - rn.doubleValue();
+                        double s = doubleValue(context, ln) - doubleValue(context, rn);
                         if (lhs.isInteger() && rhs.isInteger() && s == (int)s) {
-                            result = Node.create((int)s);
+                            result = Integer.valueOf((int)s);
                         } else {
-                            result = Node.create(s);
+                            result = Double.valueOf(s);
                         }
                     }
                 } else if (op == Term.STAR) {
-                    Node ln = evalTermAsNode("lhs", lhs, node, out, config);
-                    Node rn = evalTermAsNode("rhs", rhs, node, out, config);
+                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
                     if (ln != null && rn != null) {
-                        double s = ln.doubleValue() * rn.doubleValue();
+                        double s = doubleValue(context, ln) * doubleValue(context, rn);
                         if (lhs.isInteger() && rhs.isInteger() && s == (int)s) {
-                            result = Node.create((int)s);
+                            result = Integer.valueOf((int)s);
                         } else {
-                            result = Node.create(s);
+                            result = Double.valueOf(s);
                         }
                     }
                 } else if (op == Term.PERCENT) {
-                    Node ln = evalTermAsNode("lhs", lhs, node, out, config);
-                    Node rn = evalTermAsNode("rhs", rhs, node, out, config);
+                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
                     if (ln != null && rn != null) {
-                        double s = rn.doubleValue();
+                        double s = doubleValue(context, rn);
                         if (s == s && s != 0) {
-                            s = ln.doubleValue() % (int)s;
+                            s = doubleValue(context, ln) % (int)s;
                             if (s == s) {
-                                result = Node.create(s);
+                                result = Double.valueOf(s);
                             }
                         }
                     }
                 } else if (op == Term.SLASH) {
-                    Node ln = evalTermAsNode("lhs", lhs, node, out, config);
-                    Node rn = evalTermAsNode("rhs", rhs, node, out, config);
+                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
                     if (ln != null && rn != null) {
                         int ri;
-                        if (lhs.isInteger() && rhs.isInteger() && (ri=(int)rn.doubleValue()) != 0 && ri == rn.doubleValue()) {
-                            int s = (int)ln.doubleValue() / ri;
-                            result = Node.create(s);
+                        if (lhs.isInteger() && rhs.isInteger() && (ri=(int)doubleValue(context, rn)) != 0 && ri == doubleValue(context, rn)) {
+                            int s = (int)doubleValue(context, ln) / ri;
+                            result = Integer.valueOf(s);
                         } else {
-                            double s = ln.doubleValue() / rn.doubleValue();
+                            double s = doubleValue(context, ln) / doubleValue(context, rn);
                             if (s == s && !Double.isInfinite(s)) {
-                                result = Node.create(s);
+                                result = Double.valueOf(s);
                             }
                         }
                     }
                 } else if (op == Term.GE || op == Term.GT || op == Term.LT || op == Term.LE) {
-                    Node ln = evalTermAsNode("lhs", lhs, node, out, config);
-                    Node rn = evalTermAsNode("rhs", rhs, node, out, config);
+                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
                     if (ln != null && rn != null) {
                         double v = Double.NaN;
                         if (lhs.isNumber() && rhs.isNumber()) {
-                            v = ln.doubleValue() - rn.doubleValue();
+                            v = doubleValue(context, ln) - doubleValue(context, rn);
                         } else if (lhs.isString() && rhs.isString()) {
-                            v = ln.stringValue().compareTo(rn.stringValue());
+                            v = stringValue(context, ln).compareTo(stringValue(context, rn));
                         } else if (lhs.isBoolean() && rhs.isBoolean()) {
-                            v = ln.booleanValue() == rn.booleanValue() ? 0 : Double.NaN;
+                            v = booleanValue(context, ln) == booleanValue(context, rn) ? 0 : Double.NaN;
                         }
-                        if (Math.abs(v) <= config.getMinDouble()) {     // Rounding error
+                        if (Math.abs(v) <= context.getConfiguration().getMinDouble()) {     // Rounding error
                             v = 0;
                         }
                         if (v > 0) {
-                            result = Node.create(op == Term.GE || op == Term.GT);
+                            result = Boolean.valueOf(op == Term.GE || op == Term.GT);
                         } else if (v < 0) {
-                            result = Node.create(op == Term.LE || op == Term.LT);
+                            result = Boolean.valueOf(op == Term.LE || op == Term.LT);
                         } else if (v == 0) {
-                            result = Node.create(op == Term.GE || op == Term.LE);
+                            result = Boolean.valueOf(op == Term.GE || op == Term.LE);
                         }
                     }
                 } else if (op == Term.EQ || op == Term.NE) {
-                    Node ln = evalTermAsNode("lhs", lhs, node, out, config);
-                    Node rn = evalTermAsNode("rhs", rhs, node, out, config);
+                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
                     boolean eq;
                     if (lhs.isNumber() || rhs.isNumber()) {
-                        eq = ln != null && rn != null && Math.abs(ln.doubleValue() - rn.doubleValue()) <= config.getMinDouble();
+                        eq = ln != null && rn != null && Math.abs(doubleValue(context, ln) - doubleValue(context, rn)) <= context.getConfiguration().getMinDouble();
                     } else if (lhs.isString() || rhs.isString()) {
-                        String s1 = ln == null ? null : ln.stringValue();
-                        String s2 = rn == null ? null : rn.stringValue();
+                        String s1 = stringValue(context, ln);
+                        String s2 = stringValue(context, rn);
                         eq = s1 != null && s1.equals(s2);
                     } else if (lhs.isBoolean() || rhs.isBoolean()) {
-                        eq = ln != null && rn != null && ln.booleanValue() == rn.booleanValue();
+                        eq = ln != null && rn != null && booleanValue(context, ln) == booleanValue(context, rn);
                     } else {
                         eq = ln != null && ln.equals(rn);
                     }
-                    result = Node.create(op == Term.NE ? !eq : eq);
+                    result = Boolean.valueOf(op == Term.NE ? !eq : eq);
                 } else if (op == Term.AND) {
-                    Node ln = evalTermAsNode("lhs", lhs, node, out, config);
-                    Node rn = evalTermAsNode("rhs", rhs, node, out, config);
-                    boolean eq = ln != null && rn != null && ln.booleanValue() && rn.booleanValue(); 
-                    result = Node.create(eq);
+                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                    boolean eq = ln != null && rn != null && booleanValue(context, ln) && booleanValue(context, rn); 
+                    result = Boolean.valueOf(eq);
                 } else if (op == Term.OR) {
-                    Node ln = evalTermAsNode("lhs", lhs, node, out, config);
-                    boolean eq = ln != null && ln.booleanValue();
+                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
+                    boolean eq = ln != null && booleanValue(context, ln);
                     if (!eq) {
-                        Node rn = evalTermAsNode("rhs", rhs, node, out, config);
-                        eq = rn != null && rn.booleanValue();
+                        Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                        eq = rn != null && booleanValue(context, rn);
                     }
-                    result = Node.create(eq);
+                    result = Boolean.valueOf(eq);
                 }
                 if (result != null) {
                     out.add(result);
@@ -234,6 +233,49 @@ class Expr extends Term {
             }
         }
         return out;
+    }
+
+    static String stringValue(EvalContext context, Object node) {
+        String v;
+        if (node == null) {
+            v = null;
+        } else if (node instanceof String) {
+            v = (String)node;
+        } else if (node instanceof Number) {
+            double d = ((Number)node).doubleValue();
+            if (d == (int)d) {
+                v = Integer.toString((int)d);
+            } else {
+                v = node.toString();
+            }
+        } else if (node instanceof Boolean) {
+            v = node.toString();
+        } else {
+            v = context.stringValue(node);
+        }
+        return v;
+    }
+
+    static double doubleValue(EvalContext context, Object node) {
+        double v = Double.NaN;
+        if (node instanceof Number) {
+            v = ((Number)node).doubleValue();
+        } else if (!(node instanceof String || node instanceof Boolean || node == null)) {
+            v = context.doubleValue(node);
+        }
+        return v;
+    }
+
+    static boolean booleanValue(EvalContext context, Object node) {
+        if (node == null) {
+            return false;
+        } else if (node instanceof Boolean) {
+            return ((Boolean)node).booleanValue();
+        } else if (node instanceof String || node instanceof Number) {
+            return true;
+        } else {
+            return context.booleanValue(node);
+        }
     }
 
 }

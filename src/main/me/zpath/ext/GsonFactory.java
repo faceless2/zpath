@@ -5,12 +5,12 @@ import java.util.*;
 import com.google.gson.*;
 
 /** 
- * A Node factory for the BFO Json API from <a href="https://faceless2.github.com/json">https://faceless2.github.com/json</a>
+ * A EvalFactory for the Google Json API from <a href="https://github.com/google/gson">https://github.com/google/gson</a>,
+ * specifically the <a href="https://www.javadoc.io/doc/com.google.code.gson/gson/latest/com.google.gson/com/google/gson/JsonElement.html">JsonElement</a>
+ * class.
  */
-public class GsonFactory implements NodeFactory {
+public class GsonFactory implements EvalFactory {
     
-    private final List<Function> functions = new ArrayList<Function>();
-
     public GsonFactory() {
     }
 
@@ -18,157 +18,217 @@ public class GsonFactory implements NodeFactory {
      * Create a new Node, or return null if this factory doesn't apply
      * @param proxy a <code>com.bfo.json</code> object
      */
-    public Node create(Object proxy, Configuration config) {
+    public EvalContext create(Object proxy, Configuration config) {
         if (proxy instanceof JsonElement) {
-            for (Function f : functions) {
-                config.registerFunction(f);
-            }
-            return new Proxy(null, (JsonElement)proxy, null, -1);
+            return new MyContext(config);
         }
         return null;
     }
 
-    private static class Proxy implements Node {
+    private static class MyContext implements EvalContext {
 
-        private final Proxy parent;
-        private final JsonElement proxy;
-        private final Object key;
-        private final int index;
-
-        Proxy(Proxy parent, JsonElement json, Object key, int index) {
-            this.parent = parent;
-            this.proxy = json;
-            this.key = key;
-            this.index = index;
+        private static class ReverseLookup {
+            final JsonElement parent;
+            final Object key;
+            final int index;
+            ReverseLookup(JsonElement parent, Object key, int index) {
+                this.parent = parent;
+                this.key = key;
+                this.index = index;
+            }
         }
 
-        @Override public Iterator<Node> get(Object key) {
-            if (key == WILDCARD) {
-                if (proxy.isJsonArray()) {
-                    final JsonArray list = (JsonArray)proxy;
-                    return new Iterator<Node>() {
-                        int i = 0;
-                        public boolean hasNext() {
-                            return i < list.size();
-                        }
-                        public Node next() {
-                            if (!hasNext()) {
-                                throw new NoSuchElementException();
-                            }
-                            Node n = new Proxy(Proxy.this, list.get(i), Integer.valueOf(i), i);
-                            i++;
-                            return n;
-                        }
-                        public void remove() {
-                            throw new UnsupportedOperationException();
+        private final Map<JsonElement,ReverseLookup> registry;
+        private final Configuration config;
+        private int contextIndex = -1;
+        private List<Object> contextObjects;
+
+        MyContext(Configuration config) {
+            this.config = config;
+            this.registry = new HashMap<JsonElement,ReverseLookup>();
+        }
+
+        private void register(JsonElement child, JsonElement parent, Object key, int index) {
+            registry.put(child, new ReverseLookup(parent, key, index));
+        }
+
+        @Override public Configuration getConfiguration() {
+            return config;
+        }
+
+        @Override public Configuration.Logger getLogger() {
+            return config.getLogger();
+        }
+
+        @Override public Function getFunction(String name) {
+            return null;
+        }
+
+        @Override public void setContext(int index, List<Object> nodes) {
+            if (nodes == null) {
+                index = -1;
+            }
+            this.contextIndex = index;
+            this.contextObjects = nodes;
+        }
+
+        @Override public int getContextIndex() {
+            return contextIndex;
+        }
+
+        @Override public List<Object> getContext() {
+            return contextObjects;
+        }
+
+        @Override public Iterable<? extends Object> get(final Object o, Object key) {
+            if (o instanceof JsonArray) {
+                final JsonArray list = (JsonArray)o;
+                if (key == WILDCARD) {
+                    return new Iterable<JsonElement>() {
+                        public Iterator<JsonElement> iterator() {
+                            final Iterator<JsonElement> i = list.iterator();
+                            return new Iterator<JsonElement>() {
+                                int index = 0;
+                                public JsonElement next() {
+                                    JsonElement elt = i.next();
+                                    register(elt, list, Integer.valueOf(index), index);
+                                    index++;
+                                    return elt;
+                                }
+                                public boolean hasNext() {
+                                    return i.hasNext();
+                                }
+                                public void remove() {
+                                    throw new UnsupportedOperationException();
+                                }
+                            };
                         }
                     };
-                } else if (proxy.isJsonObject()) {
-                    final JsonObject map = (JsonObject)proxy;
-                    final Iterator<Map.Entry<String,JsonElement>> i = map.asMap().entrySet().iterator();
-                    return new Iterator<Node>() {
-                        public boolean hasNext() {
-                            return i.hasNext();
-                        }
-                        public Node next() {
-                            Map.Entry<String,JsonElement> e = i.next();
-                            return new Proxy(Proxy.this, e.getValue(), e.getKey(), -1);
-                        }
-                        public void remove() {
-                            throw new UnsupportedOperationException();
+                } else if (key instanceof Integer) {
+                    int index = ((Integer)key).intValue();
+                    if (index >= 0 && index < list.size()) {
+                        JsonElement elt = list.get(index);
+                        register(elt, list, Integer.valueOf(index), index);
+                        return Collections.<JsonElement>singletonList(elt);
+                    }
+                }
+            } else if (o instanceof JsonObject) {
+                JsonObject map = (JsonObject)o;
+                if (key == WILDCARD) {
+                    return new Iterable<JsonElement>() {
+                        public Iterator<JsonElement> iterator() {
+                            final Iterator<Map.Entry<String,JsonElement>> i = map.asMap().entrySet().iterator();
+                            return new Iterator<JsonElement>() {
+                                public JsonElement next() {
+                                    Map.Entry<String,JsonElement> e = i.next();
+                                    JsonElement elt = e.getValue();
+                                    register(elt, map, e.getKey(), -1);
+                                    return elt;
+                                }
+                                public boolean hasNext() {
+                                    return i.hasNext();
+                                }
+                                public void remove() {
+                                    throw new UnsupportedOperationException();
+                                }
+                            };
                         }
                     };
-                } else {
-                    return null;
+                } else if (key instanceof String) {
+                    JsonElement elt = map.get((String)key);
+                    if (elt != null) {
+                        register(elt, map, key, -1);
+                        return Collections.<JsonElement>singletonList(elt);
+                    }
                 }
-            } else if (key instanceof Integer && proxy.isJsonArray()) {
-                final JsonArray list = (JsonArray)proxy;
-                int index = ((Integer)key).intValue();
-                if (index >= 0 && index < list.size()) {
-                    return Collections.<Node>singleton(new Proxy(this, list.get(index), key, index)).iterator();
-                }
-            } else if (key instanceof String && proxy.isJsonObject()) {
-                final JsonObject map = (JsonObject)proxy;
-                JsonElement j = map.get((String)key);
-                if (j != null) {
-                    return Collections.<Node>singleton(new Proxy(this, j, key, -1)).iterator();
-                }
+            }
+            return Collections.<Object>emptyList();
+        }
+
+        @Override public Object parent(Object o) {
+            ReverseLookup l = registry.get(o);
+            if (l != null) {
+                return l.parent;
             }
             return null;
         }
 
-        @Override public Node parent() {
-            return parent;
-        }
-
-        @Override public String stringValue() {
-            if (proxy instanceof JsonPrimitive) {
-                return ((JsonPrimitive)proxy).getAsString();
-            }
-            return null;
-        }
-
-        @Override public double doubleValue() {
-            if (proxy instanceof JsonPrimitive && ((JsonPrimitive)proxy).isNumber()) {
-                return ((JsonPrimitive)proxy).getAsNumber().doubleValue();
-            }
-            return Double.NaN;
-        }
-
-        @Override public boolean booleanValue() {
-            if (proxy instanceof JsonNull) {
-                return false;
-            } else if (proxy instanceof JsonPrimitive) {
-                JsonPrimitive j = (JsonPrimitive)proxy;
-                if (j.isBoolean()) {
-                    return j.getAsBoolean();
-                }
-            }
-            return true;
-        }
-
-        @Override public boolean equals(Object o) {
-            return o instanceof Proxy && ((Proxy)o).proxy == proxy;
-        }
-
-        @Override public int hashCode() {
-            return proxy.hashCode();
-        }
-
-        @Override public Object key() {
-            return key;
-        }
-
-        @Override public int index() {
-            return index;
-        }
-
-        @Override public Object proxy() {
-            return proxy;
-        }
-
-        @Override public String type() {
-            if (proxy.isJsonPrimitive() && ((JsonPrimitive)proxy).isString()) {
-                return "string";
-            } else if (proxy.isJsonPrimitive() && ((JsonPrimitive)proxy).isNumber()) {
-                return "number";
-            } else if (proxy.isJsonPrimitive() && ((JsonPrimitive)proxy).isBoolean()) {
-                return "boolean";
-            } else if (proxy.isJsonObject()) {
-                return "map";
-            } else if (proxy.isJsonArray()) {
-                return "list";
-            } else if (proxy.isJsonNull()) {
-                return "null";
+        @Override public String stringValue(Object o) {
+            if (o instanceof JsonPrimitive) {
+                return ((JsonPrimitive)o).getAsString();
             } else {
-                return "unknown";       // Shouldn't happen
+                return o == null ? null : o.toString();
             }
         }
 
-        @Override public String toString() {
-//            return proxy.toString();
-            return proxy.toString() + "#KEY="+key();
+        @Override public double doubleValue(Object o) {
+            if (o instanceof JsonPrimitive && ((JsonPrimitive)o).isNumber()) {
+                return ((JsonPrimitive)o).getAsNumber().doubleValue();
+            } else {
+                return o instanceof Number ? ((Number)o).doubleValue() : Double.NaN;
+            }
         }
+
+        @Override public boolean booleanValue(Object o) {
+            if (o instanceof JsonNull) {
+                return false;
+            } else if (o instanceof JsonPrimitive && ((JsonPrimitive)o).isBoolean()) {
+                return ((JsonPrimitive)o).getAsBoolean();
+            }
+            return o != null;
+        }
+
+        @Override public Object key(Object o) {
+            ReverseLookup l = registry.get(o);
+            if (l != null) {
+                return l.key;
+            }
+            return null;
+        }
+
+        @Override public int index(Object o) {
+            ReverseLookup l = registry.get(o);
+            if (l != null) {
+                return l.index;
+            }
+            return -1;
+        }
+            
+        @Override public String type(Object o) {
+            if (o instanceof JsonPrimitive && ((JsonPrimitive)o).isString()) {
+                return "string";
+            } else if (o instanceof JsonPrimitive && ((JsonPrimitive)o).isNumber()) {
+                return "number";
+            } else if (o instanceof JsonPrimitive && ((JsonPrimitive)o).isBoolean()) {
+                return "boolean";
+            } else if (o instanceof JsonObject) {
+                return "map";
+            } else if (o instanceof JsonArray) {
+                return "list";
+            } else if (o instanceof JsonNull) {
+                return "null";
+            }
+            return null;
+        }
+
+        @Override public Object unwrap(Object o) {
+            if (o instanceof JsonPrimitive && ((JsonPrimitive)o).isString()) {
+                return ((JsonPrimitive)o).getAsString();
+            } else if (o instanceof JsonPrimitive && ((JsonPrimitive)o).isNumber()) {
+                double d = ((JsonPrimitive)o).getAsNumber().doubleValue();
+                if (d == (int)d) {
+                    return Integer.valueOf((int)d);
+                } else {
+                    return Double.valueOf(d);
+                }
+            } else if (o instanceof JsonPrimitive && ((JsonPrimitive)o).isBoolean()) {
+                return ((JsonPrimitive)o).getAsBoolean();
+            } else if (o instanceof JsonNull) {
+                return null;
+            }
+            return o;
+        }
+
 
     }
 

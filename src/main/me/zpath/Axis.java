@@ -13,9 +13,9 @@ interface Axis {
      * Evaluate the set of nodes supplied in "in", move along this axis and add matching nodes to "out"
      * @param in the list of nodes in our input set - read only
      * @param out the list of nodes we are to add to
-     * @param config the configuration
+     * @param context the contexturation
      */
-    List<Node> eval(List<Node> in, List<Node> out, Configuration config);
+    List<Object> eval(List<Object> in, List<Object> out, EvalContext context);
 
     default void log(Configuration.Logger logger) {
         logger.log(toString());
@@ -37,28 +37,22 @@ interface Axis {
      */
     static Axis axisKey(final Object name, final int index) {
         return new Axis() {
-            @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
-                final Configuration.Logger logger = config.getLogger();
-                Set<Node> seen = new HashSet<Node>(out);
-                for (Node node : in) {
+            @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
+                final Configuration.Logger logger = context.getLogger();
+                Set<Object> seen = new HashSet<Object>(out);
+                for (Object node : in) {
                     if (seen.add(node)) {
-                        Iterator<Node> i = node.get(name != null ? name : Integer.valueOf(index));
-                        if (i != null && i.hasNext()) {
-                            int c = name != null ? index : ANYINDEX;
-                            while (i.hasNext()) {
-                                Node n = i.next();
-                                if (c == ANYINDEX || c-- == 0) {
-                                    out.add(n);
-                                    if (logger != null) {
-                                        logger.log("match: " + n);
-                                    }
-                                    if (c != ANYINDEX) {
-                                        break;
-                                    }
+                        int c = name != null ? index : ANYINDEX;
+                        for (Object n : context.get(node, name != null ? name : Integer.valueOf(index))) {
+                            if (c == ANYINDEX || c-- == 0) {
+                                out.add(n);
+                                if (logger != null) {
+                                    logger.log("match: " + n);
+                                }
+                                if (c != ANYINDEX) {
+                                    break;
                                 }
                             }
-                        } else if (logger != null) {
-                            logger.log("miss: " + node);
                         }
                     }
                 }
@@ -68,7 +62,7 @@ interface Axis {
                 StringBuilder sb = new StringBuilder();
                 sb.append("axis-key(");
                 if (name != null) {
-                    if (name == Node.WILDCARD) {
+                    if (name == EvalContext.WILDCARD) {
                         sb.append("key=*");
                     } else {
                         sb.append("key=\"");
@@ -112,24 +106,22 @@ interface Axis {
      * @hidden
      */
     static Axis SELFORANYDESCENDENT = new Axis() {
-        @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
-            final Configuration.Logger logger = config.getLogger();
-            Stack<Node> stack = new Stack<Node>();
-            Set<Node> seen = new HashSet<Node>(out);
-            for (Node node : in) {
+        @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
+            final Configuration.Logger logger = context.getLogger();
+            Stack<Object> stack = new Stack<Object>();
+            Set<Object> seen = new HashSet<Object>(out);
+            List<Object> temp = new ArrayList<Object>();
+            for (Object node : in) {
                 // Iterative depth first traversal from node
                 stack.push(node);
                 while (!stack.isEmpty()) {
-                    Node n = stack.pop();
-                    Iterator<Node> i = n.get("*");
-                    if (i != null) { // Add to stack in reverse order
-                        List<Node> temp = new ArrayList<Node>();
-                        while (i.hasNext()) {
-                            temp.add(i.next());
-                        }
-                        for (int j=temp.size()-1;j>=0;j--) {
-                            stack.push(temp.get(j));
-                        }
+                    Object n = stack.pop();
+                    temp.clear();
+                    for (Object o : context.get(n, EvalContext.WILDCARD)) {
+                        temp.add(o);
+                    }
+                    for (int j=temp.size()-1;j>=0;j--) {
+                        stack.push(temp.get(j));
                     }
                     if (seen.add(n)) {
                         out.add(n);
@@ -151,11 +143,11 @@ interface Axis {
      * @hidden
      */
     static Axis PARENT = new Axis() {
-        @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
-            final Configuration.Logger logger = config.getLogger();
-            Set<Node> seen = new HashSet<Node>(out);
-            for (Node node : in) {
-                Node parent = node.parent();
+        @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
+            final Configuration.Logger logger = context.getLogger();
+            Set<Object> seen = new HashSet<Object>(out);
+            for (Object node : in) {
+                Object parent = context.parent(node);
                 if (parent != null && seen.add(parent)) {
                     out.add(parent);
                     if (logger != null) {
@@ -175,13 +167,14 @@ interface Axis {
      * @hidden
      */
     static Axis ROOT = new Axis() {
-        @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
-            Node root = in.iterator().next();
-            while (root.parent() != null) {
-                root = root.parent();
+        @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
+            Object root = in.iterator().next();
+            Object o;
+            while ((o=context.parent(root)) != null) {
+                root = o;
             }
-            if (config.getLogger() != null) {
-                config.getLogger().log("match: " + root);
+            if (context.getLogger() != null) {
+                context.getLogger().log("match: " + root);
             }
             out.add(root);
             return out;
@@ -196,10 +189,10 @@ interface Axis {
      * @hidden
      */
     static Axis SELF = new Axis() {
-        @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
-            Set<Node> seen = new HashSet<Node>(out);
-            final Configuration.Logger logger = config.getLogger();
-            for (Node node : in) {
+        @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
+            Set<Object> seen = new HashSet<Object>(out);
+            final Configuration.Logger logger = context.getLogger();
+            for (Object node : in) {
                 if (seen.add(node)) {
                     out.add(node);
                     if (logger != null) {
@@ -220,18 +213,18 @@ interface Axis {
      */
     static Axis axisMatch(final Term term) {
         return new Term() {
-            @Override public List<Node> eval(final List<Node> in, final List<Node> out, final Configuration config) {
-                final Configuration.Logger logger = config.getLogger();
-                List<Node> tmp = new ArrayList<Node>();
-                int oldindex = config.getContextIndex();
-                List<Node> oldcontext = config.getContextNodes();
-                List<Node> contextNodes = Collections.<Node>unmodifiableList(in);
+            @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
+                final Configuration.Logger logger = context.getLogger();
+                List<Object> tmp = new ArrayList<Object>();
+                int oldindex = context.getContextIndex();
+                List<Object> oldcontext = context.getContext();
+                List<Object> contextObjects = Collections.<Object>unmodifiableList(in);
                 for (int i=0;i<in.size();i++) {
-                    Node node = in.get(i);
+                    Object node = in.get(i);
                     tmp.clear();
-                    config.setContext(i, contextNodes);
-                    term.eval(Collections.<Node>singletonList(node), tmp, config);
-                    boolean match = !tmp.isEmpty() && (term.isPath() || tmp.iterator().next().booleanValue());
+                    context.setContext(i, contextObjects);
+                    term.eval(Collections.<Object>singletonList(node), tmp, context);
+                    boolean match = !tmp.isEmpty() && (term.isPath() || Expr.booleanValue(context, tmp.iterator().next()));
                     if (match) {
                         out.add(node);
                     }
@@ -243,7 +236,7 @@ interface Axis {
                         }
                     }
                 }
-                config.setContext(oldindex, oldcontext);
+                context.setContext(oldindex, oldcontext);
                 return out;
             }
             @Override public String toString() {

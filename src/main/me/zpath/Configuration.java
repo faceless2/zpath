@@ -6,19 +6,17 @@ import java.net.*;
 
 /**
  * The Configuration is a shared resourece which configures how ZPath expressions
- * are handded. There is normally no need to deal with this class unless you
+ * are handlded. There is normally no need to deal with this class unless you
  * want to register custom functions or factories.
  */
 public class Configuration {
 
     private static final Configuration CONFIG = new Configuration();
 
-    private Set<NodeFactory> factories;
-    private Map<String,Function> functions;
+    private Set<EvalFactory> factories;
+    private Set<Function> functions;
     private Logger logger;
     private boolean closed;
-    private int contextIndex = -1;
-    private List<Node> contextNodes;
 
     private Configuration() {
     }
@@ -28,8 +26,8 @@ public class Configuration {
      * @param config the configuration to copy
      */
     public Configuration(Configuration config) {
-        functions = new LinkedHashMap<String,Function>(config.functions);
-        factories = new LinkedHashSet<NodeFactory>(config.factories);
+        functions = new LinkedHashSet<Function>(config.functions);
+        factories = new LinkedHashSet<EvalFactory>(config.factories);
         logger = config.logger;
     }
 
@@ -53,107 +51,27 @@ public class Configuration {
     }
 
     /**
-     * Register a new Function with this Configuration
-     * @param function the function
-     */
-    public void registerFunction(Function function) {
-        if (closed) {
-            throw new IllegalStateException("closed");
-        }
-        functions.put(function.getName(), function);
-    }
-
-    /**
-     * Register a new Factory with this Configuration. Factories will also be
-     * loaded from any <code>META-INF/services/me.zpath.NodeFactory</code>
-     * resources found in the classpath when this class is initialized.
-     * @param factory the factory
-     */
-    public void registerFactory(NodeFactory factory) {
-        if (closed) {
-            throw new IllegalStateException("closed");
-        }
-        factories.add(factory);
-    }
-
-    /**
-     * Find the function that matches the specified name
-     * @param name the function name
-     * @return the function, or null if not found.
-     */
-    public Function getFunction(String name) {
-        return functions.get(name);
-    }
-
-    /**
      * Return all the functions registered with this Configuration
      * @return the functions
      */
     public Collection<Function> getFunctions() {
-        return functions.values();
+        return functions;
     }
 
     /**
      * Return all the factories registered with this Configuration
      * @return the factories
      */
-    public Collection<NodeFactory> getFactories() {
+    public Collection<EvalFactory> getFactories() {
         return factories;
-    }
-
-    /**
-     * When evaluating a path against this context, set the context of this evaluation
-     * to an index into a set of nodes. Used to resolve <code>index()</code> and <code>count()</code>
-     */
-    public void setContext(int index, List<Node> nodes) {
-        if (nodes == null) {
-            index = -1;
-        }
-        this.contextIndex = index;
-        this.contextNodes = nodes;
-    }
-
-    int getContextIndex() {
-        return contextIndex;
-    }
-
-    List<Node> getContextNodes() {
-        return contextNodes;
     }
 
     private void close() {
         if (!closed) {
-            functions = Collections.<String,Function>unmodifiableMap(functions);
-            factories = Collections.<NodeFactory>unmodifiableSet(factories);
+            functions = Collections.<Function>unmodifiableSet(functions);
+            factories = Collections.<EvalFactory>unmodifiableSet(factories);
         }
         closed = true;
-    }
-
-    /**
-     * Convert the specified object to a Node suitable for passing in to {@link ZPath#evalNode}
-     * @param object the object
-     * @return a Node matching the object
-     * @throws IllegalArgumentException if a Node cannot  be created from the object
-     */
-    public Node toNode(Object object) {
-        if (object == null) {
-            throw new IllegalArgumentException("Object is null");
-        }
-        Node node = null;
-        if (object instanceof Node) {
-            node = (Node)object;
-        } else {
-            for (NodeFactory factory : getFactories()) {
-                node = factory.create(object, this);
-                if (node != null) {
-                    break;
-                }
-            }
-        }
-        if (node == null) {
-            throw new IllegalArgumentException("Can't create Node from " + object);
-        }
-        return node;
     }
 
     /**
@@ -255,40 +173,37 @@ public class Configuration {
     //--------------------------------------------------------------------------------------------------------------------------
 
     static {
-        CONFIG.functions = new LinkedHashMap<String,Function>();
-        CONFIG.factories = new LinkedHashSet<NodeFactory>();
-        CONFIG.factories.addAll(getServiceList(me.zpath.NodeFactory.class));
+        CONFIG.functions = new LinkedHashSet<Function>();
+        CONFIG.factories = new LinkedHashSet<EvalFactory>();
+        CONFIG.factories.addAll(getServiceList(me.zpath.EvalFactory.class));
 
         // Core: eval, union, intersection, key, index, count
-        CONFIG.registerFunction(new Function() {
-            //
-            // eval(...)               eval its argument
-            //
-            @Override public String getName() {
-                return "eval";
+        CONFIG.getFunctions().add(new Function() {
+            @Override public boolean matches(String name) {
+                return "eval".equals(name);
             }
-            @Override public boolean verify(List<Term> args) {
+            @Override public boolean verify(String name, List<Term> args) {
                 return args.size() == 1;
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, Configuration config) {
-                args.get(0).eval(in, out, config);
+            @Override public void eval(String name, List<Term> args, List<Object> in, List<Object> out, EvalContext context) {
+                args.get(0).eval(in, out, context);
             }
         });
-        CONFIG.registerFunction(new Function() {
+        CONFIG.getFunctions().add(new Function() {
             //
             // union(...)               a union of all its arguments, removing duplicates
             //
-            @Override public String getName() {
-                return "union";
+            @Override public boolean matches(String name) {
+                return "union".equals(name);
             }
-            @Override public boolean verify(List<Term> args) {
+            @Override public boolean verify(String name, List<Term> args) {
                 return true;
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, Configuration config) {
-                Set<Node> seen = new HashSet<Node>();
-                List<Node> tmp = new ArrayList<Node>();
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, EvalContext context) {
+                Set<Object> seen = new HashSet<Object>();
+                List<Object> tmp = new ArrayList<Object>();
                 for (Term t : args) {
-                    for (Node node : t.eval(in, tmp, config)) {
+                    for (Object node : t.eval(in, tmp, context)) {
                         if (seen.add(node)) {
                             out.add(node);
                         }
@@ -297,152 +212,137 @@ public class Configuration {
                 }
             }
         });
-        CONFIG.registerFunction(new Function() {
+        CONFIG.getFunctions().add(new Function() {
             //
             // intersection(...)        an intersection of all its arguments, removing duplicates
             //
-            @Override public String getName() {
-                return "intersection";
+            @Override public boolean matches(String name) {
+                return "intersection".equals(name);
             }
-            @Override public boolean verify(List<Term> args) {
+            @Override public boolean verify(final String name, final List<Term> args) {
                 return true;
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                Set<Node> work = null;
-                List<Node> tmp = new ArrayList<Node>();
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                Set<Object> work = null;
+                List<Object> tmp = new ArrayList<Object>();
                 for (Term t : args) {
                     if (work == null) {
-                        work = new LinkedHashSet<Node>(t.eval(in, tmp, config));
+                        work = new LinkedHashSet<Object>(t.eval(in, tmp, context));
                     } else {
-                        work.retainAll(t.eval(in, tmp, config));
+                        work.retainAll(t.eval(in, tmp, context));
                     }
                     tmp.clear();
                 }
                 out.addAll(work);
             }
         });
-        CONFIG.registerFunction(new Function() {
+        CONFIG.getFunctions().add(new Function() {
             //
             // key()           return the name by which this node is typically accessed from its parent (ie string for maps/XML elements, int for arrays).
             // key(path)       for every node matching path, return name()
             //
-            @Override public String getName() {
-                return "key";
+            @Override public boolean matches(String name) {
+                return "key".equals(name);
             }
-            @Override public boolean verify(List<Term> args) {
+            @Override public boolean verify(final String name, final List<Term> args) {
                 return args.size() <= 1;
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
-                    Object s = node.key();
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                    Object s = context.key(node);
                     if (s != null) {
-                        out.add(Node.create(s));
+                        out.add(s);
                     }
                 }
             }
         });
-        CONFIG.registerFunction(new Function() {
+        CONFIG.getFunctions().add(new Function() {
             //
             // index()          return the index into the current nodeset of this node
             // index(path)      for every node matching path, if it can be accessed by an index from its parent, return that index.
             //
-            @Override public String getName() {
-                return "index";
+            @Override public boolean matches(String name) {
+                return "index".equals(name);
             }
-            @Override public boolean verify(List<Term> args) {
+            @Override public boolean verify(final String name, final List<Term> args) {
                 return args.size() <= 1;
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 if (args.isEmpty()) {
-                    if (config.getContextIndex() >= 0) {
-                        out.add(Node.create(config.getContextIndex()));
+                    if (context.getContextIndex() >= 0) {
+                        out.add(context.getContextIndex());
                     }
                 } else {
-                    for (Node node : args.get(0).eval(in, new ArrayList<Node>(), config)) {
-                        Node parent = node.parent();
+                    for (Object node : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                        Object parent = context.parent(node);
                         if (parent != null) {
-                            int index = node.index();
+                            int index = context.index(node);
                             if (index >= 0) {
-                                out.add(Node.create(index));
+                                out.add(index);
                             }
                         }
                     }
                 }
             }
         });
-        CONFIG.registerFunction(new Function() {
+        CONFIG.getFunctions().add(new Function() {
             //
             // count()          return the number of nodes in the current nodeset
             // count(path)      return the number of nodes matching path
             //
-            public String getName() {
-                return "count";
+            public boolean matches(String name) {
+                return "count".equals(name);
             }
-            public boolean verify(List<Term> terms) {
+            public boolean verify(final String name, final List<Term> terms) {
                 return terms.size() <= 1;
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 if (args.isEmpty()) {
-                    if (config.getContextNodes() != null) {
-                        out.add(Node.create(config.getContextNodes().size()));
+                    if (context.getContext() != null) {
+                        out.add(context.getContext().size());
                     }
                 } else {
                     int count = 0;
-                    for (Node node : args.get(0).eval(in, new ArrayList<Node>(), config)) {
+                    for (Object node : args.get(0).eval(in, new ArrayList<Object>(), context)) {
                         count++;
                     }
-                    out.add(Node.create(count));    // count(*) or *[index() + 1 == count()]
+                    out.add(count);    // count(*) or *[index() + 1 == count()]
                 }
             }
         });
-        CONFIG.registerFunction(new Function() {
+        CONFIG.getFunctions().add(new Function() {
             //
             // is-first()       return true if index into the current nodeset of this node == 0
-            //
-            @Override public String getName() {
-                return "is-first";
-            }
-            @Override public boolean verify(List<Term> args) {
-                return args.size() == 0;
-            }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                if (config.getContextIndex() >= 0 && config.getContextNodes() != null) {
-                    out.add(Node.create(config.getContextIndex() == 0));
-                }
-            }
-        });
-        CONFIG.registerFunction(new Function() {
-            //
             // is-last()          return the index into the current nodeset of this node == count()-1
             //
-            @Override public String getName() {
-                return "is-last";
+            @Override public boolean matches(String name) {
+                return "is-first".equals(name) || "is-last".equals(name);
             }
-            @Override public boolean verify(List<Term> args) {
+            @Override public boolean verify(final String name, final List<Term> args) {
                 return args.size() == 0;
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                if (config.getContextIndex() >= 0 && config.getContextNodes() != null) {
-                    out.add(Node.create(config.getContextIndex() == config.getContextNodes().size() - 1));
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                if (context.getContextIndex() >= 0 && context.getContext() != null) {
+                    out.add(context.getContextIndex() == ("is-first".equals(name) ? 0 : context.getContext().size() - 1));
                 }
             }
         });
         /*
-        CONFIG.registerFunction(new Function() {
+        CONFIG.getFunctions().add(new Function() {
             //
             // match(index)     return the specified node from the current nodeset. TODO is this useful?
             //
-            public String getName() {
-                return "match";
+            public boolean matches(String name) {
+                return "match".equals(name);
             }
-            public boolean verify(List<Term> terms) {
+            public boolean verify(final String name, final List<Term> terms) {
                 return terms.size() == 1;
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                List<Node> context = config.getContextNodes();
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                List<Object> context = context.getContext();
                 if (context != null) {
-                    List<Node> tmp = new ArrayList<Node>();
-                    args.get(0).eval(in, tmp, config);
+                    List<Object> tmp = new ArrayList<Object>();
+                    args.get(0).eval(in, tmp, context);
                     if (tmp.size() > 0) {
                         double d = tmp.doubleValue();
                         if (d == d) {
@@ -457,252 +357,184 @@ public class Configuration {
         });
         */
 
-        CONFIG.registerFunction(new Function() {
+        CONFIG.getFunctions().add(new Function() {
             //
             // prev()           if this node can be accessed from its parent with an index, evaluates as the the node accessed from the previous index.
             // prev(x)          if the specified nodes can be accessed from their parents with an index, evaluates as the the node accessed from the previous index.
-            //
-            public String getName() {
-                return "prev";
-            }
-            public boolean verify(List<Term> terms) {
-                return terms.isEmpty();
-            }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
-                    int index = node.index();
-                    if (index > 0) {
-                        Iterator<Node> i = node.parent().get(index - 1);
-                        if (i != null) {
-                            while (i.hasNext()) {
-                                out.add(i.next());
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        CONFIG.registerFunction(new Function() {
-            //
             // next()           if this node can be accessed from its parent with an index, evaluates as the the node accessed from the next index.
             // next(x)          if the specified nodes can be accessed from their parent with an index, evaluates as the the node accessed from the next index.
             //
-            public String getName() {
-                return "next";
+            public boolean matches(String name) {
+                return "prev".equals(name) || "next".equals(name);
             }
-            public boolean verify(List<Term> terms) {
+            public boolean verify(final String name, final List<Term> terms) {
                 return terms.isEmpty();
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
-                    int index = node.index();
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                    int index = context.index(node);
                     if (index >= 0) {
-                        Iterator<Node> i = node.parent().get(index + 1);
-                        if (i != null) {
-                            while (i.hasNext()) {
-                                out.add(i.next());
-                            }
+                        for (Object o : context.get(context.parent(node), index + ("prev".equals(name) ? -1 : 1))) {
+                            out.add(o);
                         }
                     }
                 }
-            }
-        });
-
-        CONFIG.registerFunction(new Function() {
-            public String getName() {
-                return "min";
-            }
-            public boolean verify(List<Term> terms) {
-                return terms.size() <= 1;
-            }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                double min = Double.NaN;
-                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
-                    double d = node.doubleValue();
-                    if (d == d) {
-                        min = min == min ? Math.min(min, d) : d;
-                    }
-                }
-                out.add(Node.create(min));
-            }
-        });
-        CONFIG.registerFunction(new Function() {
-            public String getName() {
-                return "max";
-            }
-            public boolean verify(List<Term> terms) {
-                return terms.size() <= 1;
-            }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                double max = Double.NaN;
-                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
-                    double d = node.doubleValue();
-                    if (d == d) {
-                        max = max == max ? Math.max(max, d) : d;
-                    }
-                }
-                out.add(Node.create(max));
-            }
-        });
-        CONFIG.registerFunction(new Function() {
-            public String getName() {
-                return "sum";
-            }
-            public boolean verify(List<Term> terms) {
-                return terms.size() <= 1;
-            }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                double sum = 0;
-                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
-                    double d = node.doubleValue();
-                    if (d == d) {
-                        sum += d;
-                    }
-                }
-                out.add(Node.create(sum));
             }
         });
 
         // Math functions
-        CONFIG.registerFunction(new Function() {
-            public String getName() {
-                return "ceil";
+        CONFIG.getFunctions().add(new Function() {
+            public boolean matches(String name) {
+                return "min".equals(name) || "max".equals(name) || "sum".equals(name);
             }
-            public boolean verify(List<Term> terms) {
+            public boolean verify(final String name, final List<Term> terms) {
                 return terms.size() <= 1;
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
-                    double d = node.doubleValue();
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                double v = "sum".equals(name) ? 0 : Double.NaN;
+                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                    double d = Expr.doubleValue(context, node);
                     if (d == d) {
-                        d = Math.ceil(d);
-                        out.add(d == (int)d ? Node.create((int)d) : Node.create(d));
+                        if (v != v) {
+                            v = d;
+                        } else if ("min".equals(name)) {
+                            v = Math.min(v, d);
+                        } else if ("max".equals(name)) {
+                            v = Math.max(v, d);
+                        } else if ("sum".equals(name)) {
+                            v = v + d;
+                        }
                     }
                 }
+                out.add(v);
             }
         });
-        CONFIG.registerFunction(new Function() {
-            public String getName() {
-                return "floor";
+        CONFIG.getFunctions().add(new Function() {
+            public boolean matches(String name) {
+                return "ceil".equals(name) || "floor".equals(name) || "round".equals(name);
             }
-            public boolean verify(List<Term> terms) {
+            public boolean verify(final String name, final List<Term> terms) {
                 return terms.size() <= 1;
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
-                    double d = node.doubleValue();
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                    double d = Expr.doubleValue(context, node);
                     if (d == d) {
-                        d = Math.floor(d);
-                        out.add(d == (int)d ? Node.create((int)d) : Node.create(d));
-                    }
-                }
-            }
-        });
-        CONFIG.registerFunction(new Function() {
-            public String getName() {
-                return "round";
-            }
-            public boolean verify(List<Term> terms) {
-                return terms.size() <= 1;
-            }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
-                    double d = node.doubleValue();
-                    if (d == d) {
-                        d = Math.round(d);
-                        out.add(d == (int)d ? Node.create((int)d) : Node.create(d));
+                        if ("ceil".equals(name)) {
+                            d = Math.ceil(d);
+                        } else if ("floor".equals(name)) {
+                            d = Math.floor(d);
+                        } else {
+                            d = Math.round(d);
+                        }
+                        out.add(d == (int)d ? Integer.valueOf((int)d) : Double.valueOf(d));
                     }
                 }
             }
         });
 
         // Type conversion functions
-        CONFIG.registerFunction(new Function() {
-            public String getName() {
-                return "type";
+        CONFIG.getFunctions().add(new Function() {
+            public boolean matches(String name) {
+                return "type".equals(name);
             }
-            public boolean verify(List<Term> terms) {
+            public boolean verify(final String name, final List<Term> terms) {
                 return terms.size() <= 1;
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 boolean set = false;
-                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
+                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
                     set = true;
-                    String s = node.type();
-                    if (s == s) {
-                        out.add(Node.create(s));
+                    String s;
+                    if (node == null) {
+                        s = "null";
+                    } else if (node instanceof String) {
+                        s = "string";
+                    } else if (node instanceof Number) {
+                        s = "number";
+                    } else if (node instanceof Boolean) {
+                        s = "boolean";
+                    } else {
+                        s = context.type(node);
+                        if (s == null) {
+                            s = node.getClass().getName();
+                        }
                     }
+                    out.add(s);
                 }
                 if (!set) {
-                    out.add(Node.create("undefined"));
+                    out.add("undefined");
                 }
             }
         });
-        CONFIG.registerFunction(new Function() {
-            public String getName() {
-                return "string";
+        CONFIG.getFunctions().add(new Function() {
+            public boolean matches(String name) {
+                return "string".equals(name);
             }
-            public boolean verify(List<Term> terms) {
+            public boolean verify(final String name, final List<Term> terms) {
                 return terms.size() <= 1;
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
-                    String s = node.stringValue();;
-                    if (s != null) {
-                        out.add(node);
-                    } else {
-                        double d = node.doubleValue();
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                    String s = Expr.stringValue(context, node);
+                    if (s == null) {
+                        double d = Expr.doubleValue(context, node);
                         if (d == d) {
                             if (d == (int)d) {
-                                out.add(Node.create(Integer.toString((int)d)));
+                                s = Integer.toString((int)d);
                             } else {
-                                out.add(Node.create(Double.toString(d)));
+                                s = Double.toString(d);
                             }
                         }
                     }
-                }
-            }
-        });
-
-        CONFIG.registerFunction(new Function() {
-            public String getName() {
-                return "num";
-            }
-            public boolean verify(List<Term> terms) {
-                return terms.size() <= 1;
-            }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
-                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
-                    String s;
-                    double d = node.doubleValue();
-                    if (d == d) {
+                    if (s != null) {
                         out.add(node);
-                    } else if ((s=node.stringValue()) != null) {
-                        try {
-                            d = Double.parseDouble(s);
-                            if (d == d && !Double.isInfinite(d)) {
-                                out.add(Node.create(d));
-                            }
-                        } catch (Exception e) { }
                     }
                 }
             }
         });
 
-        CONFIG.registerFunction(new Function() {
-            public String getName() {
-                return "encode";
+        CONFIG.getFunctions().add(new Function() {
+            public boolean matches(String name) {
+                return "num".equals(name);
             }
-            public boolean verify(List<Term> terms) {
+            public boolean verify(final String name, final List<Term> terms) {
                 return terms.size() <= 1;
             }
-            @Override public void eval(List<Term> args, List<Node> in, List<Node> out, final Configuration config) {
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                    double d = Expr.doubleValue(context, node);
+                    if (d != d) {
+                        String s = Expr.stringValue(context, node);
+                        if (s != null) {
+                            try {
+                                d = Double.parseDouble(s);
+                            } catch (Exception e) { }
+                        }
+                    }
+                    if (d == (int)d) {
+                        out.add(Integer.valueOf((int)d));
+                    } else if (d == d && !Double.isInfinite(d)) {
+                        out.add(Double.valueOf(d));
+                    }
+                }
+            }
+        });
+
+        CONFIG.getFunctions().add(new Function() {
+            public boolean matches(String name) {
+                return "encode".equals(name);
+            }
+            @Override public boolean verify(final String name, final List<Term> terms) {
+                return terms.size() <= 1;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 StringBuilder sb = new StringBuilder();
-                for (Node node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Node>(), config)) {
-                    String s = node.stringValue();;
+                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                    String s = Expr.stringValue(context, node);
                     if (s != null) {
                         encodeXML(s, true, sb);
-                        out.add(Node.create(sb.toString()));
+                        out.add(sb.toString());
                         sb.setLength(0);
                     }
                 }

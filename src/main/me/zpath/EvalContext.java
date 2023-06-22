@@ -62,7 +62,7 @@ public interface EvalContext {
      * If the model chooses to interpret a String value like "@*" as some sort of wildcard match that's OK.
      * @return the set of nodes matching that value, or an empty collection
      */
-    public Iterator<? extends Object> get(Object o, Object key);
+    public Iterable<? extends Object> get(Object o, Object key);
 
     /**
      * Return the type of this Node. The values depend on the source language but we suggest at least

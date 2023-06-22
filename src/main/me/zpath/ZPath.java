@@ -51,6 +51,9 @@ public class ZPath {
         return o instanceof ZPath && toString().equals(o.toString());
     }
 
+    /**
+     * Return the Configuration used to compile this ZPath
+     */
     public Configuration getConfiguration() {
         return config;
     }
@@ -121,86 +124,70 @@ public class ZPath {
     }
 
     /**
-     * <p>
-     * Evaluate this ZPath against the supplied object.
-     * The object may implement {@link Node} - if it does not, the
-     * factories {@link Configuration#getFactories} registered with the
-     * Configuration will be searched to find a matching instance to 
-     * create a Node from the object. If the object cannot be created,
-     * this throws {@link IllegalArgumentException}
-     * </p><p>
-     * The return value is a list of Objects that match the specified expression;
-     * they will be from the structure reachable from the supplied Object, or
-     * may be constants (Strings, Numbers, Boolean) if the ZPath evaluates to
-     * that type of object.
-     * </p><p>
-     * If no nodes are found, an empty list is returned.
-     * </p>
-     * @param object the context object
-     * @return a List of objects that match the specified ZPath, or an empty list if no objects are found
+     * Evaluate this ZPath against the supplied object. Calls <code>eval(object, null)</code>
+     * @return the Result
      */
-    public List<Object> eval(Object object) {
-        Node node = config.toNode(object);
-        List<Node> out = evalNode(node); 
-        List<Object> oout = new ArrayList<Object>(out.size());
-        for (Node n : out) {
-            oout.add(n.proxy());
-        }
-        return oout;
-    }
-
-    /**
-     * Call {@link #eval} with the supplied object and return the first value,
-     * or null if there were no matches
-     * @param object the context object
-     * @return the first object that match the specified ZPath, or null if no objects are found
-     */
-    public Object evalSingle(Object object) {
-        List<Object> l = eval(object);
-        return l.isEmpty() ? null : l.get(0);
+    public Result eval(final Object node) {
+        return eval(node, null);
     }
 
     /**
      * <p>
-     * Evaluate this ZPath against the supplied Node.
-     * The return value is a list of Nodes that match the specified expression;
-     * they may be reachable from the supplied Node, or they may be constants
-     * (Strings, Numbers, Boolean) if the ZPath evaluates to that type of object.
+     * Evaluate this ZPath against the supplied object, using the specified {@link EvalContext}.
+     * If the context is null, {@link Configuration#getFactories} will be scanned for one that
+     * can create an {@link EvalContext} for the supplied object.
+     * If none are found, throws {@link IllegalArgumentException}
      * </p><p>
-     * If no nodes are found, an empty list is returned.
+     * The return value is {@link Result} containing a list of objects that match the specified expression.
+     * They will be either reachable via the {@link EvalContext} from the supplied object,
+     * or String, Number, or Boolean constants if the ZPath evaluates to that type of object.
      * </p>
+     * @param object the context object
+     * @param context the context to evaluate that object in, or null to find one that matches
+     * @return the Result
      */
-    public List<Node> evalNode(Node node) {
+    public Result eval(final Object node, EvalContext context) {
         if (node == null) {
             throw new IllegalArgumentException("Node is null");
         }
-        List<Node> out = new ArrayList<Node>();
+        if (context == null) {
+            for (EvalFactory factory : config.getFactories()) {
+                context = factory.create(node, config);
+                if (context != null) {
+                    break;
+                }
+            }
+        }
+        if (context == null) {
+            throw new IllegalArgumentException("No EvalFactory for " + node.getClass().getName());
+        }
+        List<Object> out = new ArrayList<Object>();
         try {
-            if (config.getLogger() != null) {
-                config.getLogger().log("ZPath.eval " + node);
-                config.getLogger().enter();
+            if (context.getLogger() != null) {
+                context.getLogger().log("ZPath.eval " + node);
+                context.getLogger().enter();
             }
             for (Term term : terms) {
-                term.eval(Collections.<Node>singletonList(node), out, config);
+                term.eval(Collections.<Object>singletonList(node), out, context);
             }
-            if (config.getLogger() != null) {
+            if (context.getLogger() != null) {
                 if (out.isEmpty()) {
-                    config.getLogger().log("result: no matches");
+                    context.getLogger().log("result: no matches");
                 } else {
-                    config.getLogger().log("result:");
-                    config.getLogger().enter();
-                    for (Node n : out) {
-                        config.getLogger().log(n.toString());
+                    context.getLogger().log("result:");
+                    context.getLogger().enter();
+                    for (Object n : out) {
+                        context.getLogger().log(n.toString());
                     }
-                    config.getLogger().exit();
+                    context.getLogger().exit();
                 }
             }
         } finally {
-            if (config.getLogger() != null) {
-                config.getLogger().exit();
+            if (context.getLogger() != null) {
+                context.getLogger().exit();
             }
         }
-        return out;
+        return new Result(this, out, context);
     }
 
     private static IllegalStateException error(CursorList<Term> in, String err) {
@@ -260,7 +247,7 @@ public class ZPath {
                     throw error(in, "bad path");
                 } else {
                     int index = in.peek() != null && in.peek().isIndex() ? in.next().indexValue() : Axis.ANYINDEX;
-                    out.add(Axis.axisKey(Node.WILDCARD, index));
+                    out.add(Axis.axisKey(EvalContext.WILDCARD, index));
                     sb.append(t.toString());
                 }
                 root = slash = false;
@@ -374,14 +361,20 @@ public class ZPath {
         } else {
             in.next();
         }
-        Function f = config.getFunction(name);
-        if (f == null) {
-            f = new FunctionAxis.Dynamic(name);     // Fail now or later?
+        // Try and find the function at compile time if we can,
+        // but some are specific to the EvaluationContext so
+        // accept null
+        Function function = null;
+        for (Function f : config.getFunctions()) {
+            if (f.matches(name)) {
+                function = f;
+                break;
+            }
         }
-        if (!f.verify(args)) {
+        if (function != null && !function.verify(name, args)) {
             throw error(in.seek(in.tell() - 1), "invalid function arguments for \"" + name + "\"");
         }
-        return new FunctionAxis(f, args, path);
+        return new FunctionAxis(function, name, args, path);
     }
 
     private static Term parseOperand(CursorList<Term> in, Configuration config) {
