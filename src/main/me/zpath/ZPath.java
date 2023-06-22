@@ -449,7 +449,6 @@ public class ZPath {
                 expectingOperand = true;
             } else if (t != Term.WS && t != Term.LPAREN && t != Term.RPAREN) { 
                 in.seek(in.tell() - 1);
-                System.out.println("IN="+in);
                 operand = parseOperand(in, config);
                 if (operand != null) {
                     if (operator != null) {
