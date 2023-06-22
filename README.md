@@ -1,10 +1,10 @@
-# ZPath
+# ZPath and ZTemplate
 
 ZPath is a programmer-friendly syntax for searching structured objects. If you can navigate a filesystem and code an if-statement in C, Java or JavaScript, you already know 95% of the syntax.
 
-The grammar is universal: there's currently support for JSON, CBOR, XML and Java Collections.
+ZTemplate is a template system replacing Mustache `{{ expressions }}` with ZPath expressions. It's both trivial and immensely powerful.
 
-Evaluation is relative to a _context node_.
+The grammar is universal: there's currently support for JSON, CBOR, XML and Java Collections.
 
 | Path | Matches |
 | --- | --- |
@@ -119,6 +119,33 @@ A ZPath can be compiled once and reused in multiple threads.
 * `com.google.gson.JsonElement` (see https://github.com/google/gson)
 * `java.util.Map` and `java.util.Collection` - traversed without reflection (tested with Jackson and Gson)
 
+
+# ZTemplate
+
+ZTemplate allows the substutution of ZPath queries into a template. It is based on [Mustache](http://mustache.github.io), which claims to be logic-less but requires the
+programmer to provide all the logic in the model.
+
+ZPath expressions include both logic and context, so the syntax for using them in a template can be trivial.
+
+* `{{ expression }}` will be replaced by the value of the expression
+* `{{# expression }} content {{/ expression}` will evaluate the expression then process `content` for each matching node, evaluating any nested expressions against that node.
+
+```html
+<h1>{{person/name}}</h1>
+
+{{# person/items }}
+  {{# is-first() }}
+    <h2>Items: {{ count() }}</h2>
+  {{/ is-first() }}
+  Name: {{ name }}<br>
+  Price: {{ price }}<br>
+  Units: {{ units }}<br>
+  Total: {{ num(units) * num(price) }}<br>
+{{/ person/items }}
+```
+
+ZPath expressions can include `/` or `#` - whitespace around an expression removes any ambiguity.
+
 ## FAQ
 
 * **Why require whitespace around binary operators?** - because terms like `*` and `/` can also be used in a path: the ZPath expression `* * 2` means "multiply the numeric value of all children by 2". While it could have been done another way, it would be complex and difficult to diagnose when it went wrong. This rule is easy to remember and makes ZPath expressions more legible too
@@ -128,4 +155,4 @@ A ZPath can be compiled once and reused in multiple threads.
 * **Why not use XPath?** It only applies to XML. Also, it has a grammar which <strike>is peculiar</strike> I struggle to remember without a cheat-sheet. Expressions are largely interchangeable across most programming languages; Paths are implemented the same way in URLs and files. These concepts are familiar and should be reused if at all possible.
 * **Why don't you have a function that does X?** - I want a core set of concepts that translates to all structures. But please suggest it in the issues. 
 * **Are there other implementations?** No, but I would welcome them. The code is fairly concise and the concepts simple - it should port easily to most languages.
-
+* **[Mustache](http://mustache.github.io) or [Handlebars](https://handlebarsjs.com) are simpler** Only on the surface. Logic-less templates are myth; logic is _always_ required, the question is where you put it. These solutions move all the complexity to the model, usually requiring custom accessor methods or twisting the model to fit the template. Other solutions like JSP go the other way, mixing code and tags in a terrible punctuation soup. XSLT is XML specific so it's verbose, overcomplex and not à la mode, but is twinned with XPath and has the right sort of ideas. ZPath and ZTemplate are inspired by XSLT, focussing on sets of nodes, but ensuring all the complexity is in one place: ZPath.
