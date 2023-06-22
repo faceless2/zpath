@@ -18,11 +18,11 @@ Evaluation is relative to a _context node_.
 | `../tr[index() == 0]/td` | all `td` children of the same|
 | `**/tr[count(td) == 2]`| all nodes at or below the context node called `tr` with two `td` children |
 | `body[**/tr[count(td) == 2]]`| all `body` children that match the above description |
-| `address[!city \|\| type(city) == "null"]` | all `address` children where `city` is missing or set to `null`|
-| `address[!!city]` | all `address` children with child `city` not `null` or `false` |
+| `car[!age \|\| type(age) == "null"]` | all `car` children where `age` is missing or set to `null`|
+| `car[!!age]` | all `car` children with child `age` not `null` or `false` |
 | `[key() != ix]` | all children where the key it's stored as in its parent != its `ix` value|
 | `list/*[index() % 2 == 0]` | every even-numbered child of the `list` child |
-| `item[is-first() ? "first" : name]` | for all `item` chidren, "first" if it's first, or its `name` child otherwise|
+| `car[is-first() ? "na" : age]` | for all `car` chidren, "na" if it's first, or its `age` child otherwise|
 | `count(tr/td)` | if evaluated on a table, the number of cells in the table (a single number) |
 | `tr/count(td)` | the number of cells in each row of the table (a list of numbers) |
 | `table[@class == "defn"]` | all `table` children where the class attribute equals `defn` (XML only) |
@@ -107,23 +107,24 @@ import me.zpath.ZPath;
 
 Object context = ...;
 ZPath path = ZPath.compile("table/tr[td]");
-List<Object> match = ZPath.evaluate(context).all();  // List of zero or more objects
-Object match = ZPath.evaluate(context).first();      // The first object matched, or null if it matched none
+List<Object> match = ZPath.evaluate(context).all();  // List of zero or more matches
+Object match = ZPath.evaluate(context).first();      // The first match, or null if none
 ```
 
+A ZPath can be compiled once and reused in multiple threads.
 `context` can be any type of object recognised by an `EvalFactory` registered with the implementation. The API ships with implementations for:
 
 * `org.w3c.dom.Node`
 * `com.bfo.json.Json` (see http://faceless2.github.io/json)
 * `com.google.gson.JsonElement` (see https://github.com/google/gson)
-* `java.util.Map` and `java.util.Collection` - these are traversed without reflection (works with Jackson/Gson)
+* `java.util.Map` and `java.util.Collection` - traversed without reflection (tested with Jackson and Gson)
 
 ## FAQ
 
 * **Why require whitespace around binary operators?** - because terms like `*` and `/` can also be used in a path: the ZPath expression `* * 2` means "multiply the numeric value of all children by 2". While it could have been done another way, it would be complex and difficult to diagnose when it went wrong. This rule is easy to remember and makes ZPath expressions more legible too
 * **How are null, zero, false handled in boolean contexts?** - if you have an expression that is just a path, eg `[td]`, it will match if the expression matches one or more nodes, _regardless of value_. So if `td` is `false` or `null` it will match. To cause null values to evaluate as false it is `[td && type(td) != "null"]`. To cause null or false values to evaluate as false, the easiest way is `[!!td]`, to also identify sero values its `[!!td && td != 0]`, and so on
 * **Why not use JSONPath**? Because it is very limited and has a peculiar grammar that only applies to JSON
-* **Why not use JMESPath**? Because it is very powerful and has a peculiar grammar that only applies to JSON
-* **Why not use XPath?** It only applies to XML. Also, it has a grammar which <strike>is peculiar</strike> I struggle to remember without a cheat-sheet. Boolean operations in most (not all) programming languages are implemented the same way. Paths are implemented the same way in URLs and files. These concepts are familiar and should be reused if at all possible.
+* **Why not use JMESPath**? Because it is very complicated and has a peculiar grammar that only applies to JSON
+* **Why not use XPath?** It only applies to XML. Also, it has a grammar which <strike>is peculiar</strike> I struggle to remember without a cheat-sheet. Expressions are largely interchangeable across most programming languages; Paths are implemented the same way in URLs and files. These concepts are familiar and should be reused if at all possible.
 * **Why don't you have a function that does X?** - I want a core set of concepts that translates to all structures. But please suggest it in the issues. 
 * **Are there other implementations?** No, but I would welcome them. The code is fairly concise and the concepts simple - it should port easily to most languages.
