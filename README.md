@@ -20,12 +20,12 @@ Evaluation is relative to a _context node_.
 | `body[**/tr[count(td) == 2]]`| all `body` children that match the above description |
 | `car[!age \|\| type(age) == "null"]` | all `car` children where `age` is missing or set to `null`|
 | `car[!!age]` | all `car` children with child `age` not `null` or `false` |
-| `[key() != ix]` | all children where the key it's stored as in its parent != its `ix` value|
+| `[key() != ix]` | all children where the key its stored as in its parent != its `ix` value|
 | `list/*[index() % 2 == 0]` | every even-numbered child of the `list` child |
 | `car[is-first() ? "na" : age]` | for all `car` chidren, "na" if it's first, or its `age` child otherwise|
 | `count(tr/td)` | if evaluated on a table, the number of cells in the table (a number) |
 | `tr/count(td)` | the number of cells in each row of the table (a list of numbers) |
-| `table[@class == "defn"]` | all `table` children where the class attribute equals `defn` (XML only) |
+| `table[@class == "defn"]` | all `table` children with a class attribute of `defn` (XML only) |
 | `[@* == "defn"]` | all children where any attribute equals `defn` (XML only) |
 | `table/@class` | the class attribute of any `table` children, as a string (XML only) |
 | `**/bowl/*, **/fruit`|all descendents where parent is `bowl` or that are called `fruit`|
@@ -34,14 +34,14 @@ Evaluation is relative to a _context node_.
 ## ZPath Parsing
 
 * an **expression** may be a **function**, a **path**, a string (in quotes), a number, or a combination of these using normal C-like operators
-* binary operators `+ - * / % && || & |` and the ternary operator `? :` _must_ have white-space to either side
+* binary operators `+ - * / % && || ^ & |` and the ternary operator `? :` require white-space to either side
 * a **path** is constructed like a UNIX file path, a list of **segments** seperated with `/`
-* each path **segment** can be `*`, `**`, `..`, a **name**, an **index** (`#`integer), a combination (**name**`#`integer) or a **function**
+* a path **segment** can be `*`, `**`, `..`, a **name**, an **index** (`#`integer), both (**name**`#`integer) or a **function**
 * each **segment** may followed by zero or more **qualifying expressions** (an **expression** inside square brackets)
 * a **qualifying expression** may never follow a `/` in a path unless it is the root `/`
 * a function is a **name** immediately followed by `(`, zero or more **arguments** seperated by commas, then a `)`
 * **arguments** depend on the function, but are typically **expressions**
-* if a **name** contains `\n \r \t ( ) [ ] / , = & | ! < > #` or space characters, they must be backslash-escaped
+* that characters `\n \r \t ( ) [ ] / , = & | ! < > #` and space in a **name ** must be backslash-escaped
 * finally, the top-level expression _only_ may be a comma-separateed list of **expressions**
 
 ## ZPath Evaluation
@@ -128,3 +128,4 @@ A ZPath can be compiled once and reused in multiple threads.
 * **Why not use XPath?** It only applies to XML. Also, it has a grammar which <strike>is peculiar</strike> I struggle to remember without a cheat-sheet. Expressions are largely interchangeable across most programming languages; Paths are implemented the same way in URLs and files. These concepts are familiar and should be reused if at all possible.
 * **Why don't you have a function that does X?** - I want a core set of concepts that translates to all structures. But please suggest it in the issues. 
 * **Are there other implementations?** No, but I would welcome them. The code is fairly concise and the concepts simple - it should port easily to most languages.
+

@@ -371,7 +371,7 @@ public class Configuration {
                 return terms.isEmpty();
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
-                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
                     int index = context.index(node);
                     if (index >= 0) {
                         for (Object o : context.get(context.parent(node), index + ("prev".equals(name) ? -1 : 1))) {
@@ -388,11 +388,11 @@ public class Configuration {
                 return "min".equals(name) || "max".equals(name) || "sum".equals(name);
             }
             public boolean verify(final String name, final List<Term> terms) {
-                return terms.size() <= 1;
+                return true;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 double v = "sum".equals(name) ? 0 : Double.NaN;
-                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_ALL)) {
                     double d = Expr.doubleValue(context, node);
                     if (d == d) {
                         if (v != v) {
@@ -417,7 +417,7 @@ public class Configuration {
                 return terms.size() <= 1;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
-                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
                     double d = Expr.doubleValue(context, node);
                     if (d == d) {
                         if ("ceil".equals(name)) {
@@ -443,7 +443,7 @@ public class Configuration {
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 boolean set = false;
-                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
                     set = true;
                     String s;
                     if (node == null) {
@@ -475,7 +475,7 @@ public class Configuration {
                 return terms.size() <= 1;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
-                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
                     String s = Expr.stringValue(context, node);
                     if (s == null) {
                         double d = Expr.doubleValue(context, node);
@@ -502,7 +502,7 @@ public class Configuration {
                 return terms.size() <= 1;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
-                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
                     double d = Expr.doubleValue(context, node);
                     if (d != d) {
                         String s = Expr.stringValue(context, node);
@@ -530,7 +530,7 @@ public class Configuration {
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 StringBuilder sb = new StringBuilder();
-                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
                     String s = Expr.stringValue(context, node);
                     if (s != null) {
                         encodeXML(s, true, sb);
@@ -570,6 +570,56 @@ public class Configuration {
             }
         });
         CONFIG.close();
+    }
+
+    private static final int ALLARGS = 0;               // Iterate over args only, or nothing of no args
+    private static final int CONTEXT_OR_ALL = 1;        // Iterate over all args, or context if no args supplied
+    private static final int ONEARGS = 2;               // Iterate over first arguent only, or nothing if no args
+    private static final int CONTEXT_OR_FIRST  = 3;     // Iterate over first argument onyl, or context if no args supplied
+
+    /**
+     * Return an iterator that will cover all nodes
+     * @param contextfallback if true and no arguments are supplied, iterator over our context ("in")
+     * @param allargs if true, iterate over more than one argument if supplied
+     */
+    private static Iterable<Object> allnodes(final List<Term> args, final List<Object> in, final EvalContext context, final int flags) {
+        return new Iterable<Object>() {
+            public Iterator<Object> iterator() {
+                return new Iterator<Object>() {
+                    private int c = 0;
+                    private Iterator<Object> i;
+                    {skip();}
+                    public boolean hasNext() {
+                        if (!i.hasNext()) {
+                            skip();
+                            if (!i.hasNext()) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                    private void skip() {
+                        if (i == null) {
+                            if (args.isEmpty() && (flags == CONTEXT_OR_ALL || flags == CONTEXT_OR_FIRST)) {
+                                i = in.iterator();
+                            } else if (args.isEmpty()) {
+                                i = Collections.<Object>emptyList().iterator();
+                            } else {
+                                i = args.get(0).eval(in, new ArrayList<Object>(), context).iterator();
+                            }
+                        } else if ((flags == ALLARGS || flags == CONTEXT_OR_ALL) && c + 1 < args.size()) {
+                            i = args.get(++c).eval(in, new ArrayList<Object>(), context).iterator();
+                        }
+                    }
+                    public Object next() {
+                        return i.next();
+                    }
+                    public void remove() {
+                        throw new UnsupportedOperationException();
+                    }
+                };
+            }
+        };
     }
 
 }

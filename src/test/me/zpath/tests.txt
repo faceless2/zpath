@@ -112,6 +112,18 @@ age / 2									13
 age /2									ERROR
 2 - 2									0
 2 * 3 + 4								10
+4 + 2 * 3								10
+(4 + 2) * 3								18
+(((4 + 2) * 3))								18
+10 & 6									2
+10 | 6									14
+10 ^ 6									12
+min(age, 30)								26
+max(age, 30)								30
+sum(age, 30)								56
+floor(age / 3)								8
+ceil(age / 3)								9
+round(age / 3)								9
 age == 26 ? age + 2 : 'young'						28
 age != 26 ? 'old' : 'young'						"young"
 age == 26 ? (name == 'Jim' ? '26Jim' : '26NotJim') : 'Not26'		"26NotJim"

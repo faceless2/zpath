@@ -60,7 +60,7 @@ public class Term implements Axis {
     /** The "&amp;" Token */
     public static final Term BITAND = new Term("&", 8);
     /** The "^" Token */
-    public static final Term BITXOR = new Term("^", 9);
+    public static final Term CARET = new Term("^", 9);
     /** The "|" Token */
     public static final Term BITOR = new Term("|", 10);
     /** The "&amp;&amp;" Token */

@@ -587,6 +587,8 @@ public class ZPath {
                 } else {
                     tokens.add(Term.BITOR);
                 }
+            } else if (c == '^') {
+                tokens.add(Term.CARET);
             } else if (c == '=' && i + 1 < len && in.codePointAt(i + 1) == '=') {
                 tokens.add(Term.EQ);
                 i++;

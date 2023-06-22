@@ -163,6 +163,36 @@ class Expr extends Term {
                             }
                         }
                     }
+                } else if (op == Term.BITAND) {
+                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                    if (ln != null && rn != null) {
+                        double ld = doubleValue(context, ln);
+                        double rd = doubleValue(context, rn);
+                        if (ld == ld && rd == rd && ld == (int)ld && rd == (int)rd) {
+                            result = Integer.valueOf((int)ld & (int)rd);
+                        }
+                    }
+                } else if (op == Term.BITOR) {
+                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                    if (ln != null && rn != null) {
+                        double ld = doubleValue(context, ln);
+                        double rd = doubleValue(context, rn);
+                        if (ld == ld && rd == rd && ld == (int)ld && rd == (int)rd) {
+                            result = Integer.valueOf((int)ld | (int)rd);
+                        }
+                    }
+                } else if (op == Term.CARET) {
+                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                    if (ln != null && rn != null) {
+                        double ld = doubleValue(context, ln);
+                        double rd = doubleValue(context, rn);
+                        if (ld == ld && rd == rd && ld == (int)ld && rd == (int)rd) {
+                            result = Integer.valueOf((int)ld ^ (int)rd);
+                        }
+                    }
                 } else if (op == Term.GE || op == Term.GT || op == Term.LT || op == Term.LE) {
                     Object ln = evalTermAsObject("lhs", lhs, node, out, context);
                     Object rn = evalTermAsObject("rhs", rhs, node, out, context);
