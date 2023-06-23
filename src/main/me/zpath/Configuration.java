@@ -3,6 +3,7 @@ package me.zpath;
 import java.util.*;
 import java.io.*;
 import java.net.*;
+import java.math.*;
 
 /**
  * The Configuration is a shared resourece which configures how ZPath expressions
@@ -426,22 +427,66 @@ public class Configuration {
                 return true;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                // This is a pain - if we're given 1000 integers and one BigDecimal, output has to be BigDecimal.
+                // Do it with doubles initially if we hit a mismatch, step up
                 double v = "sum".equals(name) ? 0 : Double.NaN;
+                BigDecimal bv = null;
                 for (Object node : allnodes(args, in, context, CONTEXT_OR_ALL)) {
-                    double d = Expr.doubleValue(context, node);
-                    if (d == d) {
+                    Number n = Expr.numberValue(context, node);
+                    if (n != null) {
+                        double d = n.doubleValue();
+                        if (Double.isInfinite(d) || Math.abs(d - (long)d) >= 1) {
+                            // eek! Either really infinite, or too big for double, or we lose resolution because it's a long.
+                            // continue with BigDecimals
+                            bv = new BigDecimal(v == v ? v : d);
+                        }
                         if (v != v) {
                             v = d;
                         } else if ("min".equals(name)) {
-                            v = Math.min(v, d);
+                            if (bv != null) {
+                                bv = bv.min(new BigDecimal(d));
+                            } else {
+                                v = Math.min(v, d);
+                            }
                         } else if ("max".equals(name)) {
-                            v = Math.max(v, d);
+                            if (bv != null) {
+                                bv = bv.max(new BigDecimal(d));
+                            } else {
+                                v = Math.max(v, d);
+                            }
                         } else if ("sum".equals(name)) {
-                            v = v + d;
+                            if (bv != null) {
+                                bv = bv.add(new BigDecimal(d));
+                            } else {
+                                v = v + d;
+                            }
                         }
                     }
                 }
-                out.add(v);
+                if (bv == null) {
+                    if (v == (int)v) {
+                        out.add((int)v);
+                    } else if (v == (long)v) {
+                        out.add((long)v);
+                    } else {
+                        out.add(v);
+                    }
+                } else {
+                    try {
+                        out.add(bv.intValueExact());
+                    } catch (Exception e1) {
+                        try {
+                            out.add(bv.longValueExact());
+                        } catch (Exception e2) {
+                            try {
+                                out.add(bv.toBigIntegerExact());
+                            } catch (Exception e4) {
+                                // We get here if there are any floating points
+                                out.add(bv.doubleValue());
+                            }
+                        }
+                    }
+                }
             }
         });
         CONFIG.getFunctions().add(new Function() {
@@ -453,16 +498,29 @@ public class Configuration {
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
-                    double d = Expr.doubleValue(context, node);
-                    if (d == d) {
-                        if ("ceil".equals(name)) {
-                            d = Math.ceil(d);
-                        } else if ("floor".equals(name)) {
-                            d = Math.floor(d);
+                    Number n = Expr.numberValue(context, node);
+                    if (n != null) {
+                        if (n instanceof BigDecimal) {
+                            n = ((BigDecimal)n).round(new MathContext(MathContext.UNLIMITED.getPrecision(), "ceil".equals(name) ? RoundingMode.CEILING : "floor".equals(name) ? RoundingMode.FLOOR: RoundingMode.HALF_UP)); // This sucks! No RoundingMode rounds 2.4 to 2, 2.5 to 3 and -2.5 to 2. Insane but suck up the edge case
+                        } else if (n instanceof Double || n instanceof Float) {
+                            double d;
+                            if ("ceil".equals(name)) {
+                                d = Math.ceil(n.doubleValue());
+                            } else if ("floor".equals(name)) {
+                                d = Math.floor(n.doubleValue());
+                            } else {
+                                d = Math.round(n.doubleValue());
+                            }
+                            if (d == (int)d) {
+                                out.add(Integer.valueOf((int)d));
+                            } else if (d == (long)d) {
+                                out.add(Long.valueOf((long)d));
+                            } else {
+                                out.add(Double.valueOf(d));     // yep - for massive doubles
+                            }
                         } else {
-                            d = Math.round(d);
+                            out.add(n);
                         }
-                        out.add(d == (int)d ? Integer.valueOf((int)d) : Double.valueOf(d));
                     }
                 }
             }
@@ -527,12 +585,26 @@ public class Configuration {
                 for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
                     String s = Expr.stringValue(context, node);
                     if (s == null) {
-                        double d = Expr.doubleValue(context, node);
-                        if (d == d) {
-                            if (d == (int)d) {
-                                s = Integer.toString((int)d);
-                            } else {
-                                s = Double.toString(d);
+                        if (context.value(node) instanceof Boolean) {
+                            s = context.value(node).toString();
+                        } else {
+                            Number n = Expr.numberValue(context, node);
+                            if (n != null) {
+                                s = n.toString();
+                                // Strip trailing ".0"
+                                int ix = s.indexOf(".");
+                                if (ix > 0) {
+                                    boolean found = false;
+                                    for (int i=ix+1;i<s.length();i++) {
+                                        if (s.charAt(i) != '0') {
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                    if (!found) {
+                                        s = s.substring(0, ix);
+                                    }
+                                }
                             }
                         }
                     }
@@ -551,19 +623,34 @@ public class Configuration {
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
-                    double d = Expr.doubleValue(context, node);
-                    if (d != d) {
+                    Number n = Expr.numberValue(context, node);
+                    if (n == null) {
                         String s = Expr.stringValue(context, node);
                         if (s != null) {
-                            try {
-                                d = Double.parseDouble(s);
-                            } catch (Exception e) { }
+                            if (s.indexOf('.') < 0) {
+                                try {
+                                    n = Long.valueOf(s);
+                                    if (n.longValue() == n.intValue()) {
+                                        n = Integer.valueOf(n.intValue());
+                                    }
+                                } catch (Exception e) { 
+                                    try {
+                                        n = new BigInteger(s);
+                                    } catch (Exception e2) { }
+                                }
+                            } else {
+                                try {
+                                    n = Double.valueOf(s);
+                                } catch (Exception e) { 
+                                    try {
+                                        n = new BigDecimal(s);
+                                    } catch (Exception e2) { }
+                                }
+                            }
                         }
                     }
-                    if (d == (int)d) {
-                        out.add(Integer.valueOf((int)d));
-                    } else if (d == d && !Double.isInfinite(d)) {
-                        out.add(Double.valueOf(d));
+                    if (n != null) {
+                        out.add(n);
                     }
                 }
             }
@@ -590,13 +677,9 @@ public class Configuration {
                 for (Object node : in) {
                     String v = null;;
                     try {
-                        double d = Expr.doubleValue(context, node);
-                        if (d == d) {
-                            if (d == (int)d) {
-                                v = String.format(locale, format, (int)d);
-                            } else {
-                                v = String.format(locale, format, d);
-                            }
+                        Number n = Expr.numberValue(context, node);
+                        if (n != null) {
+                            v = String.format(locale, format, n);
                         } else {
                             String s = Expr.stringValue(context, node);
                             if (s != null) {
@@ -604,7 +687,7 @@ public class Configuration {
                             }
                         }
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        e.printStackTrace(System.out);
                     }
                     if (v != null) {
                         out.add(v);

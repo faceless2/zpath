@@ -156,17 +156,15 @@ public class GsonFactory implements EvalFactory {
         @Override public String stringValue(Object o) {
             if (o instanceof JsonPrimitive) {
                 return ((JsonPrimitive)o).getAsString();
-            } else {
-                return o == null ? null : o.toString();
             }
+            return null;
         }
 
-        @Override public double doubleValue(Object o) {
+        @Override public Number numberValue(Object o) {
             if (o instanceof JsonPrimitive && ((JsonPrimitive)o).isNumber()) {
-                return ((JsonPrimitive)o).getAsNumber().doubleValue();
-            } else {
-                return o instanceof Number ? ((Number)o).doubleValue() : Double.NaN;
+                return ((JsonPrimitive)o).getAsNumber();
             }
+            return null;
         }
 
         @Override public boolean booleanValue(Object o) {

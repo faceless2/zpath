@@ -163,8 +163,8 @@ public class JavaCollectionFactory implements EvalFactory {
             return null;
         }
 
-        @Override public double doubleValue(Object o) {
-            return Double.NaN;
+        @Override public Number numberValue(Object o) {
+            return null;
         }
 
         @Override public boolean booleanValue(Object o) {

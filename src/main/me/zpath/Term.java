@@ -57,6 +57,10 @@ public class Term implements Axis {
     public static final Term EQ = new Term("==", 7);
     /** The "!=" Token */
     public static final Term NE = new Term("!=", 7);
+    /** The "===" Token */
+    public static final Term EEQ = new Term("===", 7);
+    /** The "!-=" Token */
+    public static final Term NEE = new Term("!==", 7);
     /** The "&amp;" Token */
     public static final Term BITAND = new Term("&", 8);
     /** The "^" Token */
@@ -260,9 +264,9 @@ public class Term implements Axis {
      * @return the value of the term as a double
      * @throws IllegalStateException if its not a double
      */
-    public double doubleValue() {
+    public Number numberValue() {
         if (isNumber()) {
-            return nvalue.doubleValue();
+            return nvalue;
         } else {
             throw new IllegalStateException();
         }
@@ -272,14 +276,14 @@ public class Term implements Axis {
      * If this term is a number, return the value as a integer
      * @return the value of the term as an integer
      * @throws IllegalStateException if its not a integer
-     */
     public int intValue() {
         if (isNumber()) {
-            return nvalue.intValue();
+            return nvalue;
         } else {
             throw new IllegalStateException();
         }
     }
+     */
 
     int indexValue() {
         if (isIndex()) {

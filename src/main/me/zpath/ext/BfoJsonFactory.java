@@ -113,14 +113,14 @@ public class BfoJsonFactory implements EvalFactory {
             return null;
         }
 
-        @Override public double doubleValue(final Object o) {
+        @Override public Number numberValue(final Object o) {
             if (o instanceof Json) {
                 Json json = (Json)o;
                 if (json.isNumber()) {
-                    return json.doubleValue();
+                    return json.numberValue();
                 }
             }
-            return Double.NaN;
+            return null;
         }
 
         @Override public boolean booleanValue(final Object o) {
@@ -198,12 +198,7 @@ public class BfoJsonFactory implements EvalFactory {
                 if (json.isString()) {
                     return json.stringValue();
                 } else if (json.isNumber()) {
-                    double d = json.doubleValue();
-                    if (d == (int)d) {
-                        return Integer.valueOf((int)d);
-                    } else {
-                        return Double.valueOf(d);
-                    }
+                    return json.numberValue();
                 } else if (json.isBoolean()) {
                     return json.booleanValue();
                 } else if (json.isNull() || json.isUndefined()) {

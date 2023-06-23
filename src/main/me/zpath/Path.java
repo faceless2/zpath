@@ -72,15 +72,32 @@ class Path extends Term {
                 // XPath solves this by disallowing duplicate *nodes*,
                 // but allowing duplicate atomic values. We'll do the
                 // same.
+                //
+                // The complication if the data structure we're working
+                // with *also* uses atomic values - a list containing
+                // two copies of the same string. We can't distinguish
+                // this, but we also can't identify it's key if it's
+                // stored twice. So park that for now.
                 // 
                 if (axis instanceof FunctionAxis) {
                     tmpin.clear();
                     int dupcount = 0;
                     for (int j=0;j<tmpout.size();j++) {
                         Object n = tmpout.get(j);
-                        if (n == null || n instanceof CharSequence || n instanceof Number || n instanceof Boolean || !tmpin.contains(n)) {
-                            // type list feels a bit arbitrary, deal with it if custom functions require other types
+                        if (Expr.isPrimitive(n)) {
                             tmpin.add(n);
+                        } else {
+                            // Only add it if it's not there. This has to be done with "=="
+                            // Could use IdentityHashMap
+                            for (int k=0;k<tmpin.size();k++) {
+                                if (tmpin.get(k) == n) {
+                                    n = null;
+                                    break;
+                                }
+                            }
+                            if (n != null) {
+                                tmpin.add(n);
+                            }
                         }
                     }
                 } else {

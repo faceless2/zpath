@@ -24,6 +24,8 @@
     ],
     "typetest": {
         "numvalue": 30,
+        "samenumvalue": 30,
+        "list": [30, 30, 30, 30, 30, 30],
 	"nullvalue": null,
 	"falsevalue": false
     }
@@ -97,6 +99,11 @@ intersection(first, first, last)					NULL
 **/numbers/*/count(*)							2,2,2
 **/numbers/*/eval(..)/*							/numbers/0,/numbers/1,/numbers/2	# duplicates removed
 count(**/eval(/**)/eval(/**)/eval(/**)) < 50				true	# duplicates removed
+count(/**)								30
+count(**)								30
+count(eval(**))								30
+count(eval(/**))							30
+count(eval(/**/eval(/**)))						30
 
 # Ambiguity between path and operators
 index(numbers/*[type == 'home']) == 1					true
@@ -133,10 +140,20 @@ age == 26 ? (name == 'Jim' ? '26Jim' : '26NotJim') : 'Not26'		"26NotJim"
 age == 26 ? name == 'Jim' ? '26Jim' : '26NotJim' : 'Not26'		"26NotJim"
 numbers/*[index() % 2 == 0]						/numbers/0,/numbers/2
 numbers/*[index() % 2 != 0]						/numbers/1
-numbers/*[index() % 2.4 != 0]						/numbers/1
+numbers/*[index() % 2.4 != 0]						/numbers/1,/numbers/2
 1.3 * 2.6 == 3.38							true
 union(first == 'John' ? first : 'foo', first, last)			/first,/last
 floor(2 * 3.3)								6
+**/numvalue == **/samenumvalue						true
+**/numvalue === **/samenumvalue						false
+value(**/numvalue) == value(**/samenumvalue)				true
+/ === /									true
+**/numvalue === **/numvalue						true
+**/numbers === **/numbers/#0/..						true
+number("1231213123213123123124124124142") > number("1231213123213123123124124124141")	true		# BigInteger test
+number("1231213123213123123124124124142") > number("1231213123213123123124124124141.9")	true		# BigDecimal test
+number("1231213123213123123124124124142") > 9999			true
+
 
 #---------------------------------------------------------------------------------------
 #  CBOR

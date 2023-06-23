@@ -188,24 +188,15 @@ public class DomFactory implements EvalFactory {
         @Override public String stringValue(Object o) {
             if (o instanceof Node) {
                 return ((Node)o).getTextContent();
-            } else {
-                return o == null ? null : o.toString();
             }
+            return null;
         }
 
-        @Override public double doubleValue(Object o) {
-            if (o instanceof Number) {
-                return ((Number)o).doubleValue();
-            }
-            return Double.NaN;
+        @Override public Number numberValue(Object o) {
+            return null;
         }
 
         @Override public boolean booleanValue(Object o) {
-            if (o instanceof Node) {
-                return true;
-            } else if (o instanceof Boolean) {
-                return ((Boolean)o).booleanValue();
-            }
             return o != null;
         }
 

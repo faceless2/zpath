@@ -36,17 +36,17 @@ public interface EvalContext {
     /**
      * Return the value of the node when evaluated in an expression expecting a Number.
      * The exact meaning of this will depend on the Node language model, but in JSON it's expected
-     * that the native "number" type will return a value, and everything else will return NaN.
-     * In XML there is no number type, so everything returns NaN.
+     * that the native "number" type will return a value, and everything else will return null.
+     * In XML there is no number type, so everything returns null.
      * @param o the node
-     * @return the value as a double, or Double.NaN if this node does not evaluate to a double
+     * @return the value as a double, or null if this node does not evaluate to a number
      */
-    public double doubleValue(Object o);
+    public Number numberValue(Object o);
 
     /**
      * Return the value of the node when evaluated in a boolean expression.
      * The exact meaning of this will depend on the Node language model, but in JSON it's
-     * expected that everythins other than <code>false</code> or <code>null</code> would return true.
+     * expected that everything other than <code>false</code> or <code>null</code> would return true.
      * In XML, everything returns true.
      * @param o the node
      * @return the value as a boolean

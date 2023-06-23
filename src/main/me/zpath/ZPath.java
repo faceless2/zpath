@@ -569,8 +569,13 @@ public class ZPath {
                 tokens.add(Term.SLASH);
             } else if (c == '!') {
                 if (i + 1 < len && in.codePointAt(i + 1) == '=') {
-                    tokens.add(Term.NE);
-                    i++;
+                    if (i + 2 < len && in.codePointAt(i + 2) == '=') {
+                        tokens.add(Term.NEE);
+                        i += 2;
+                    } else {
+                        tokens.add(Term.NE);
+                        i++;
+                    }
                 } else {
                     tokens.add(Term.BANG);
                 }
@@ -591,8 +596,13 @@ public class ZPath {
             } else if (c == '^') {
                 tokens.add(Term.CARET);
             } else if (c == '=' && i + 1 < len && in.codePointAt(i + 1) == '=') {
-                tokens.add(Term.EQ);
-                i++;
+                if (i + 2 < len && in.codePointAt(i + 2) == '=') {
+                    tokens.add(Term.EEQ);
+                    i += 2;
+                } else {
+                    tokens.add(Term.EQ);
+                    i++;
+                }
             } else if (c == '>') {
                 if (i + 1 < len && in.codePointAt(i + 1) == '=') {
                     tokens.add(Term.GE);

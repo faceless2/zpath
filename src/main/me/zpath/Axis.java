@@ -56,7 +56,6 @@ interface Axis {
                         }
                     }
                 }
-                assert new HashSet<Object>(out).size() == out.size() : "Duplicates";
                 return out;
             }
             @Override public String toString() {
@@ -135,7 +134,6 @@ interface Axis {
                     }
                 }
             }
-            assert new HashSet<Object>(out).size() == out.size() : "Duplicates";
             return out;
         }
         @Override public String toString() {
