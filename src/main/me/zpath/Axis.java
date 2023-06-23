@@ -39,23 +39,24 @@ interface Axis {
         return new Axis() {
             @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
                 final Configuration.Logger logger = context.getLogger();
-                Set<Object> seen = new HashSet<Object>(out);
+                // Our input is guaranteed to have no duplicates, which means
+                // the output can have no duplicates as a child can only belong
+                // to one parent.
                 for (Object node : in) {
-                    if (seen.add(node)) {
-                        int c = name != null ? index : ANYINDEX;
-                        for (Object n : context.get(node, name != null ? name : Integer.valueOf(index))) {
-                            if (c == ANYINDEX || c-- == 0) {
-                                out.add(n);
-                                if (logger != null) {
-                                    logger.log("match: " + n);
-                                }
-                                if (c != ANYINDEX) {
-                                    break;
-                                }
+                    int c = name != null ? index : ANYINDEX;
+                    for (Object n : context.get(node, name != null ? name : Integer.valueOf(index))) {
+                        if (c == ANYINDEX || c-- == 0) {
+                            out.add(n);
+                            if (logger != null) {
+                                logger.log("match: " + n);
+                            }
+                            if (c != ANYINDEX) {
+                                break;
                             }
                         }
                     }
                 }
+                assert new HashSet<Object>(out).size() == out.size() : "Duplicates";
                 return out;
             }
             @Override public String toString() {
@@ -109,7 +110,10 @@ interface Axis {
         @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
             final Configuration.Logger logger = context.getLogger();
             Stack<Object> stack = new Stack<Object>();
-            Set<Object> seen = new HashSet<Object>(out);
+            // Input has no duplicates, tree descent for each node will
+            // contain no duplicates, but tree descent for more than
+            // one node could contain duplicates.
+            Set<Object> seen = in.size() < 2 ? null : new HashSet<Object>(out); // optimization - don't track seen if list is empty
             List<Object> temp = new ArrayList<Object>();
             for (Object node : in) {
                 // Iterative depth first traversal from node
@@ -123,7 +127,7 @@ interface Axis {
                     for (int j=temp.size()-1;j>=0;j--) {
                         stack.push(temp.get(j));
                     }
-                    if (seen.add(n)) {
+                    if (seen == null || seen.add(n)) {
                         out.add(n);
                     }
                     if (logger != null) {
@@ -131,6 +135,7 @@ interface Axis {
                     }
                 }
             }
+            assert new HashSet<Object>(out).size() == out.size() : "Duplicates";
             return out;
         }
         @Override public String toString() {
@@ -190,14 +195,12 @@ interface Axis {
      */
     static Axis SELF = new Axis() {
         @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
-            Set<Object> seen = new HashSet<Object>(out);
+            // Input has no duplicates, so output can have no duplicates
             final Configuration.Logger logger = context.getLogger();
             for (Object node : in) {
-                if (seen.add(node)) {
-                    out.add(node);
-                    if (logger != null) {
-                        logger.log("match: " + node);
-                    }
+                out.add(node);
+                if (logger != null) {
+                    logger.log("match: " + node);
                 }
             }
             return out;
@@ -221,8 +224,8 @@ interface Axis {
                 List<Object> contextObjects = Collections.<Object>unmodifiableList(in);
                 for (int i=0;i<in.size();i++) {
                     Object node = in.get(i);
-                    tmp.clear();
                     context.setContext(i, contextObjects);
+                    tmp.clear();
                     term.eval(Collections.<Object>singletonList(node), tmp, context);
                     boolean match = !tmp.isEmpty() && (term.isPath() || Expr.booleanValue(context, tmp.iterator().next()));
                     if (match) {
