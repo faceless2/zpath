@@ -160,6 +160,7 @@ public class ZTemplate {
         if (sb.length() > 0) {
             cursor.add(new TemplateNode(sb.toString(), lastline, lastcol));
         }
+        // cursor.dump(System.out, "");
         return new ZTemplate(cursor, config);
     }
 
@@ -292,14 +293,14 @@ public class ZTemplate {
             return "{s="+s+" expr="+expr+" empty="+(first==null)+"}";
         }
 
-        void dump(Appendable out, String prefix, Set<Object> seen) throws IOException {
+        void dump(Appendable out, String prefix) throws IOException {
             out.append(prefix);
             out.append(toString());
             out.append("\n");
             if (first != null) {
                 prefix += " ";
                 for (TemplateNode c=first;c!=null;c=c.next) {
-                   c.dump(out, prefix, seen);
+                   c.dump(out, prefix);
                 }
             }
         }
@@ -314,6 +315,7 @@ public class ZTemplate {
         private TemplateContext ctx;        // The read context (the top of the stack)
         private String buf;                     // The text buffer being read from
         private int off;                        // How far into that text buffer we are
+        private int round;
 
         /**
          * @param template the source template
@@ -382,6 +384,7 @@ public class ZTemplate {
          */
         private void fill() {
             do {
+                round++;
 //                System.out.println("## CTX="+ctx);
                 if (ctx == null) {
                     return;
@@ -422,7 +425,7 @@ public class ZTemplate {
                     Result result = ctx.cursor.expr.eval(ctx.model, evalcontext);
     //                System.out.println("## EVAL: ctx="+ctx+" expr="+cursor.expr+" o="+out);
                     if (result.all().size() > 0) {
-                        Object n = evalcontext.unwrap(result.first());
+                        Object n = evalcontext.value(result.first());
                         if (n != null) {
                             buf = n.toString();
                             if (buf == null) {
@@ -440,7 +443,10 @@ public class ZTemplate {
 //                    System.out.println("## EVAL: ctx="+ctx+" o="+out);
                     ctx = new TemplateContext(ctx, ctx.model, ctx.cursor, out);
                 }
-            } while (off == buf.length());
+            } while (off == buf.length() && round < template.config.getMaxIterations());
+            if (round == template.config.getMaxIterations()) {
+                throw new IllegalStateException("Maximum iterations exceeded: " + round);
+            }
         }
 
         // Context as we travers around the TemplateNode tree.

@@ -94,6 +94,9 @@ intersection(first, first, last)					NULL
 **/typetest[type(nullvalue) == "null"]					/typetest
 **/typetest[type(missingvalue) == "null"]				NULL
 **/typetest[type(missingvalue) == "undefined"]				/typetest
+**/numbers/*/count(*)							2,2,2
+**/numbers/*/eval(..)/*							/numbers/0,/numbers/1,/numbers/2	# duplicates removed
+count(**/eval(/**)/eval(/**)/eval(/**)) < 50				true	# duplicates removed
 
 # Ambiguity between path and operators
 index(numbers/*[type == 'home']) == 1					true
@@ -221,8 +224,9 @@ count(**/tr)								3
 union(**/table,**/table,**/person)					/body/table,/body/person
 **/tr/count(td)								2,2,2
 **[@id == "tr2"]/@*							"second","tr2"
-**/items/item/eval(num(price) * num(quantity))				13.5,9			# sum of price*quantity for each item
-sum(**/items/item/eval(num(price) * num(quantity)))			22.5			# sum of price*quantity for each item
+**/items/item/eval(number(price) * number(quantity))			13.5,9			# sum of price*quantity for each item
+sum(**/items/item/eval(number(price) * number(quantity)))		22.5			# sum of price*quantity for each item
+format("$%02.2f", sum(**/items/item/eval(number(price) * number(quantity))))		"$22.50"		# sum of price*quantity for each item
 **/@*[url() == "http://www.w3.org/1999/02/22-rdf-syntax-ns#"]		"aboutvalue"
 **/@*									"tr1", "td1.1", "td1.2", "second", "tr2", "td2.1", "td2.2", "tr3", "td3.1", "td3.2", "aboutvalue", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 

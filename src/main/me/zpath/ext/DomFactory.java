@@ -249,7 +249,7 @@ public class DomFactory implements EvalFactory {
             return null;
         }
 
-        @Override public Object unwrap(Object o) {
+        @Override public Object value(Object o) {
             if (o instanceof Attr) {
                 return ((Attr)o).getValue();
             } else if (o instanceof Text) {

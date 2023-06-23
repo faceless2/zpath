@@ -211,7 +211,7 @@ public class GsonFactory implements EvalFactory {
             return null;
         }
 
-        @Override public Object unwrap(Object o) {
+        @Override public Object value(Object o) {
             if (o instanceof JsonPrimitive && ((JsonPrimitive)o).isString()) {
                 return ((JsonPrimitive)o).getAsString();
             } else if (o instanceof JsonPrimitive && ((JsonPrimitive)o).isNumber()) {

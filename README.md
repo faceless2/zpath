@@ -69,8 +69,10 @@ The grammar is universal: there's currently support for JSON, CBOR, XML and Java
 | `prev()` | the same, but reutrn the node at the previous index |
 | `string()` | the string value of the current node (an empty set if no string value exists) |
 | `string(expression)` | for each node matched by **expression**, its string value |
-| `num()` | the number value of the current node (an empty set if no number value exists)|
-| `num(expression)` | for each node matched by **expression**, its number value |
+| `number()` | the number value of the current node (an empty set if no number value exists)|
+| `number(expression)` | for each node matched by **expression**, its number value |
+| `value()` | the primitive value of the current node |
+| `value(expression)` | for each node matched by **expression**, its primitive value |
 | `type()` | the type of this node as a string|
 | `type(expression)` | the type of each node mached by **expression**, or `"undefined"` if it is an empty set|
 | `eval(expression)` | evaluate the expression and add the results to the **node set** |

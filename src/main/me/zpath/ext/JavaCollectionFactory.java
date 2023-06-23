@@ -196,7 +196,7 @@ public class JavaCollectionFactory implements EvalFactory {
             return null;
         }
 
-        @Override public Object unwrap(Object o) {
+        @Override public Object value(Object o) {
             return o;
         }
 

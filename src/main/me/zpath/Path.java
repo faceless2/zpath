@@ -44,34 +44,56 @@ class Path extends Term {
             }
             for (int i=0;i<path.size();i++) {
                 Axis axis = path.get(i);
-                tmpout.clear();
                 try {
                     if (logger != null) {
                         logger.log(axis + " eval on " + tmpin.size() + " nodes");
                         logger.enter();
                     }
+                    tmpout.clear();
                     axis.eval(tmpin, tmpout, context);
                 } finally {
                     if (logger != null) {
                         logger.exit();
                     }
                 }
+
                 if (tmpout.isEmpty()) {
+                    tmpin.clear();
                     break;
                 }
-                tmpin.clear();
-                for (int j=0;j<tmpout.size();j++) {
-                    Object n = tmpout.get(j);
-                    if (!tmpin.contains(n)) {
-                        tmpin.add(n);
+                // Make the output from this segment the input
+                // for the next segment.
+                //
+                // Axes within a path can be either standard axes
+                // or function axes. The standard axes guarantee that
+                // their outputs contain no duplicates. Function Axes
+                // do not, for example /**/eval(/**) will give repeats.
+                //
+                // XPath solves this by disallowing duplicate *nodes*,
+                // but allowing duplicate atomic values. We'll do the
+                // same.
+                // 
+                if (axis instanceof FunctionAxis) {
+                    tmpin.clear();
+                    int dupcount = 0;
+                    for (int j=0;j<tmpout.size();j++) {
+                        Object n = tmpout.get(j);
+                        if (n == null || n instanceof CharSequence || n instanceof Number || n instanceof Boolean || !tmpin.contains(n)) {
+                            // type list feels a bit arbitrary, deal with it if custom functions require other types
+                            tmpin.add(n);
+                        }
                     }
+                } else {
+                    List<Object> t = tmpout;
+                    tmpout = tmpin;
+                    tmpin = t;
                 }
             }
-            out.addAll(tmpout);
+            out.addAll(tmpin);
             if (logger != null) {
-                logger.log("output: " + tmpout.size() + " nodes");
+                logger.log("output: " + tmpin.size() + " nodes");
                 logger.enter();
-                for (Object n : tmpout) {
+                for (Object n : tmpin) {
                     logger.log(n.toString());
                 }
                 logger.exit();

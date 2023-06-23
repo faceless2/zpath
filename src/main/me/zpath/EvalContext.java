@@ -91,14 +91,14 @@ public interface EvalContext {
     public int index(Object o);
 
     /**
-     * Unwrap the specified object to a more primitive type. This is a convenience
-     * method - it's called from the {@link Result#unwrap} method. For example, 
-     * this method would convert a DOM Text or Attr object to a String, and a JSON
-     * string, number, boolean or null to Java String, Number, Boolean or null
+     * Unwrap the specified object to a more primitive type. This is a called
+     * from the <code>value()</code> function and also {@link Result#unwrap}.
+     * For example, this method would convert a DOM Text or Attr object to a
+     * String, and a JSON string, number, boolean or null to Java String, Number, Boolean or null
      * @param o the object
      * @return the unwrapped object, which may be "o" if its unchanged
      */
-    public Object unwrap(Object o);
+    public Object value(Object o);
 
     /**
      * Return the Function matching this name in this context, or null if there's no match

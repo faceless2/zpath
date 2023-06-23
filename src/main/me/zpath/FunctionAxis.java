@@ -38,9 +38,7 @@ class FunctionAxis extends Term implements Axis {
         }
         if (path) {
             for (int i=0;i<in.size();i++) {
-                List<Object> tmp = new ArrayList<Object>();
-                function.eval(name, args, Collections.<Object>singletonList(in.get(i)), tmp, context);
-                out.addAll(tmp);
+                function.eval(name, args, Collections.<Object>singletonList(in.get(i)), out.subList(out.size(), out.size()), context);
             }
         } else {
             function.eval(name, args, in, out, context);

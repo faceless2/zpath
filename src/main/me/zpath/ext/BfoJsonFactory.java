@@ -192,7 +192,7 @@ public class BfoJsonFactory implements EvalFactory {
             return null;
         }
 
-        public Object unwrap(Object o) {
+        public Object value(Object o) {
             if (o instanceof Json) {
                 Json json = (Json)o;
                 if (json.isString()) {

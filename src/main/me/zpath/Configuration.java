@@ -16,7 +16,10 @@ public class Configuration {
     private Set<EvalFactory> factories;
     private Set<Function> functions;
     private Logger logger;
+    private Locale locale;
     private boolean closed;
+    private int maxiterations = 1000000;
+    private long maxbytes = 1024*1024*10;               // 10MB
 
     private Configuration() {
     }
@@ -29,6 +32,7 @@ public class Configuration {
         functions = new LinkedHashSet<Function>(config.functions);
         factories = new LinkedHashSet<EvalFactory>(config.factories);
         logger = config.logger;
+        locale = config.locale;
     }
 
     /**
@@ -48,6 +52,22 @@ public class Configuration {
      */
     public Logger getLogger() {
         return logger;
+    }
+
+    /**
+     * Set the Locale to be used for locale-specific operations
+     * @param locale, or null to use the system default
+     */
+    public void setLocale(Locale locale) {
+        this.locale = locale == null ? Locale.getDefault() : locale;
+    }
+
+    /**
+     * Return the Locale set by {@link #setLocale}
+     * @return the locale
+     */
+    public Locale getLocale() {
+        return locale;
     }
 
     /**
@@ -79,6 +99,20 @@ public class Configuration {
      */
     public double getMinDouble() {
         return 0.00000001;
+    }
+
+    /**
+     * Return the maximum nuber of iterations that a ZTemplate can cycle
+     * for before failing.
+     */
+    public int getMaxIterations() {
+        return maxiterations;
+    }
+
+    public void setMaxIterations(int maxiterations) {
+        if (maxiterations <= 0) {
+            maxiterations = Integer.MAX_VALUE;
+        }
     }
 
     /**
@@ -173,6 +207,7 @@ public class Configuration {
     //--------------------------------------------------------------------------------------------------------------------------
 
     static {
+        CONFIG.locale = Locale.getDefault();
         CONFIG.functions = new LinkedHashSet<Function>();
         CONFIG.factories = new LinkedHashSet<EvalFactory>();
         CONFIG.factories.addAll(getServiceList(me.zpath.EvalFactory.class));
@@ -433,7 +468,7 @@ public class Configuration {
             }
         });
 
-        // Type conversion functions
+        // Type functions: type, value, string, number
         CONFIG.getFunctions().add(new Function() {
             public boolean matches(String name) {
                 return "type".equals(name);
@@ -469,6 +504,20 @@ public class Configuration {
         });
         CONFIG.getFunctions().add(new Function() {
             public boolean matches(String name) {
+                return "value".equals(name);
+            }
+            public boolean verify(final String name, final List<Term> terms) {
+                return terms.size() <= 1;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                boolean set = false;
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
+                    out.add(context.value(node));
+                }
+            }
+        });
+        CONFIG.getFunctions().add(new Function() {
+            public boolean matches(String name) {
                 return "string".equals(name);
             }
             public boolean verify(final String name, final List<Term> terms) {
@@ -493,10 +542,9 @@ public class Configuration {
                 }
             }
         });
-
         CONFIG.getFunctions().add(new Function() {
             public boolean matches(String name) {
-                return "num".equals(name);
+                return "number".equals(name);
             }
             public boolean verify(final String name, final List<Term> terms) {
                 return terms.size() <= 1;
@@ -521,6 +569,49 @@ public class Configuration {
             }
         });
 
+        // Format functions: format, encode
+        CONFIG.getFunctions().add(new Function() {
+            public boolean matches(String name) {
+                return "format".equals(name);
+            }
+            //a/b/format("%02d") input of one
+            //a/b[format("%02d") == "00"] input of one
+            //format("%02d", a/b) - input of two
+            public boolean verify(final String name, final List<Term> args) {
+                return (args.size() == 1 || args.size() == 2) && args.get(0).isString();    // format must be a constant
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                String format = args.get(0).stringValue();
+                Locale locale = context.getConfiguration().getLocale();
+                List<Object> nodes;
+                if (args.size() == 2) {
+                    in = args.get(1).eval(in, new ArrayList<Object>(), context);
+                }
+                for (Object node : in) {
+                    String v = null;;
+                    try {
+                        double d = Expr.doubleValue(context, node);
+                        if (d == d) {
+                            if (d == (int)d) {
+                                v = String.format(locale, format, (int)d);
+                            } else {
+                                v = String.format(locale, format, d);
+                            }
+                        } else {
+                            String s = Expr.stringValue(context, node);
+                            if (s != null) {
+                                v = String.format(locale, format, v);
+                            }
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    if (v != null) {
+                        out.add(v);
+                    }
+                }
+            }
+        });
         CONFIG.getFunctions().add(new Function() {
             public boolean matches(String name) {
                 return "encode".equals(name);

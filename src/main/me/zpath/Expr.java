@@ -81,7 +81,14 @@ class Expr extends Term {
 
     @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
         final Configuration.Logger logger = context.getLogger();
+        // This particular type of axis can only ever be evaluated on a single node.
+        // a/b[...] - evaluated once for each b, separately
+        // a/b/eval(...) - evaluated once for each b, separately
+        // syntax doesn't allow multiple nodes as input
+
+        assert in.size() == 1;
         for (Object node : in) {
+            List<Object> tmp = out.subList(out.size(), out.size());     // But, just in case, do this.
             try {
                 if (logger != null) {
                     logger.log(this + " eval " + node);
@@ -90,20 +97,20 @@ class Expr extends Term {
 
                 Object result = null;
                 if (op == Term.QUESTION) {
-                    Object ln = evalTermAsObject("test", lhs, node, out, context);
+                    Object ln = evalTermAsObject("test", lhs, node, tmp, context);
                     boolean b = booleanValue(context, ln);
                     if (b) {
-                        result = evalTermAsObject("truevalue", rhs, node, out, context);
+                        result = evalTermAsObject("truevalue", rhs, node, tmp, context);
                     } else {
-                        result = evalTermAsObject("falsevalue", rrhs, node, out, context);
+                        result = evalTermAsObject("falsevalue", rrhs, node, tmp, context);
                     }
                 } else if (op == Term.BANG) {
-                    Object ln = evalTermAsObject("op", lhs, node, out, context);
+                    Object ln = evalTermAsObject("op", lhs, node, tmp, context);
                     boolean b = booleanValue(context, ln);
                     result = Boolean.valueOf(!b);
                 } else if (op == Term.PLUS) {
-                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
-                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                    Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
                     if (ln != null && rn != null) {
                         double s = doubleValue(context, ln) + doubleValue(context, rn);
                         if (s == s) {
@@ -115,8 +122,8 @@ class Expr extends Term {
                         }
                     }
                 } else if (op == Term.MINUS) {
-                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
-                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                    Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
                     if (ln != null && rn != null) {
                         double s = doubleValue(context, ln) - doubleValue(context, rn);
                         if (lhs.isInteger() && rhs.isInteger() && s == (int)s) {
@@ -126,8 +133,8 @@ class Expr extends Term {
                         }
                     }
                 } else if (op == Term.STAR) {
-                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
-                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                    Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
                     if (ln != null && rn != null) {
                         double s = doubleValue(context, ln) * doubleValue(context, rn);
                         if (lhs.isInteger() && rhs.isInteger() && s == (int)s) {
@@ -137,8 +144,8 @@ class Expr extends Term {
                         }
                     }
                 } else if (op == Term.PERCENT) {
-                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
-                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                    Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
                     if (ln != null && rn != null) {
                         double s = doubleValue(context, rn);
                         if (s == s && s != 0) {
@@ -149,8 +156,8 @@ class Expr extends Term {
                         }
                     }
                 } else if (op == Term.SLASH) {
-                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
-                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                    Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
                     if (ln != null && rn != null) {
                         int ri;
                         if (lhs.isInteger() && rhs.isInteger() && (ri=(int)doubleValue(context, rn)) != 0 && ri == doubleValue(context, rn)) {
@@ -164,8 +171,8 @@ class Expr extends Term {
                         }
                     }
                 } else if (op == Term.BITAND) {
-                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
-                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                    Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
                     if (ln != null && rn != null) {
                         double ld = doubleValue(context, ln);
                         double rd = doubleValue(context, rn);
@@ -174,8 +181,8 @@ class Expr extends Term {
                         }
                     }
                 } else if (op == Term.BITOR) {
-                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
-                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                    Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
                     if (ln != null && rn != null) {
                         double ld = doubleValue(context, ln);
                         double rd = doubleValue(context, rn);
@@ -184,8 +191,8 @@ class Expr extends Term {
                         }
                     }
                 } else if (op == Term.CARET) {
-                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
-                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                    Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
                     if (ln != null && rn != null) {
                         double ld = doubleValue(context, ln);
                         double rd = doubleValue(context, rn);
@@ -193,55 +200,75 @@ class Expr extends Term {
                             result = Integer.valueOf((int)ld ^ (int)rd);
                         }
                     }
-                } else if (op == Term.GE || op == Term.GT || op == Term.LT || op == Term.LE) {
-                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
-                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                } else if (op == Term.GE || op == Term.GT || op == Term.LT || op == Term.LE || op == Term.EQ || op == Term.NE) {
+                    Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
+                    //
+                    // {a:30, b:25} : a >= b, is that true? Different nodes, same value. What about a == b?
+                    // XPath solves this by using "eq" and "==" to mean different things, but that's awful.
+                    //
+                    // We can't have two different nodes being equal just if they have the same value,
+                    // in XML (eg) it would mean two text nodes with the same values are the same. So
+                    // our rule is:
+                    //  * if either side is a string/number/boolean, compare by value.
+                    //  * otherwise test for equality only.
+                    // 
                     if (ln != null && rn != null) {
                         double v = Double.NaN;
-                        if (lhs.isNumber() && rhs.isNumber()) {
-                            v = doubleValue(context, ln) - doubleValue(context, rn);
-                        } else if (lhs.isString() && rhs.isString()) {
-                            v = stringValue(context, ln).compareTo(stringValue(context, rn));
-                        } else if (lhs.isBoolean() && rhs.isBoolean()) {
-                            v = booleanValue(context, ln) == booleanValue(context, rn) ? 0 : Double.NaN;
+                        if (isPrimitive(ln) || isPrimitive(rn)) {
+                            // value comparison
+                            double ld = doubleValue(context, ln);
+                            double rd = doubleValue(context, rn);
+                            if (ld == ld && rd == rd) {
+                                v = ld - rd;    // If both sides are numbers, compare as numbers
+                            } else {
+                                String ls = stringValue(context, ln);
+                                String rs = stringValue(context, rn);
+                                if (ls != null && rs != null) { // If both sides are strings, compare as strings
+                                    v = ls.compareTo(rs);
+                                } else {
+                                    // Careful now.
+                                    // We don't have a boolean constant natively, but we can generate one
+                                    // * (1 == 1) == (1 > 0)            true, both sides are native booleans
+                                    // * (1 == 1) == "test"             false, only one side is a boolean
+                                    // * (1 == 1) == a                  true regardless of the value of "a", because a exists: same as "!!a" or "a"
+                                    // For the latter it would have to be (1 == 1) == value(a)
+                                    v = booleanValue(context, ln) == booleanValue(context, rn) ? 0 : Double.NaN;
+                                }
+                            }
+                        } else {
+                            // instance comparison
+                            v = (ln == null ? rn == null : ln.equals(rn)) ? 0 : Double.NaN;
                         }
-                        if (Math.abs(v) <= context.getConfiguration().getMinDouble()) {     // Rounding error
+                        if (v == v && Math.abs(v) <= context.getConfiguration().getMinDouble()) {     // Rounding error
                             v = 0;
                         }
                         if (v > 0) {
-                            result = Boolean.valueOf(op == Term.GE || op == Term.GT);
+                            result = Boolean.valueOf(op == Term.GE || op == Term.GT || op == Term.NE);
                         } else if (v < 0) {
-                            result = Boolean.valueOf(op == Term.LE || op == Term.LT);
+                            result = Boolean.valueOf(op == Term.LE || op == Term.LT || op == Term.NE);
                         } else if (v == 0) {
-                            result = Boolean.valueOf(op == Term.GE || op == Term.LE);
+                            result = Boolean.valueOf(op == Term.GE || op == Term.LE || op == Term.EQ);
+                        } else {
+                            result = Boolean.valueOf(op == Term.NE);    // 3 < "string" == false
                         }
-                    }
-                } else if (op == Term.EQ || op == Term.NE) {
-                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
-                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
-                    boolean eq;
-                    if (lhs.isNumber() || rhs.isNumber()) {
-                        eq = ln != null && rn != null && Math.abs(doubleValue(context, ln) - doubleValue(context, rn)) <= context.getConfiguration().getMinDouble();
-                    } else if (lhs.isString() || rhs.isString()) {
-                        String s1 = stringValue(context, ln);
-                        String s2 = stringValue(context, rn);
-                        eq = s1 != null && s1.equals(s2);
-                    } else if (lhs.isBoolean() || rhs.isBoolean()) {
-                        eq = ln != null && rn != null && booleanValue(context, ln) == booleanValue(context, rn);
+                    } else if (ln == null && rn == null) {
+                        // Are two missing nodes equal to eachother? No
+                        result = op == Term.NE;
                     } else {
-                        eq = ln != null && ln.equals(rn);
+                        // Missing is never equal to not-missing
+                        result = op == Term.NE;
                     }
-                    result = Boolean.valueOf(op == Term.NE ? !eq : eq);
                 } else if (op == Term.AND) {
-                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
-                    Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                    Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
+                    Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
                     boolean eq = ln != null && rn != null && booleanValue(context, ln) && booleanValue(context, rn); 
                     result = Boolean.valueOf(eq);
                 } else if (op == Term.OR) {
-                    Object ln = evalTermAsObject("lhs", lhs, node, out, context);
+                    Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
                     boolean eq = ln != null && booleanValue(context, ln);
                     if (!eq) {
-                        Object rn = evalTermAsObject("rhs", rhs, node, out, context);
+                        Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
                         eq = rn != null && booleanValue(context, rn);
                     }
                     result = Boolean.valueOf(eq);
@@ -340,6 +367,10 @@ class Expr extends Term {
             i += c < 0x10000 ? 1 : 2;
         }
         return sb;
+    }
+
+    static boolean isPrimitive(Object o) {
+        return o == null || o instanceof Number || o instanceof String || o instanceof Boolean;
     }
 
 

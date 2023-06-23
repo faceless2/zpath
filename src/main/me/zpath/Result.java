@@ -36,12 +36,12 @@ public class Result {
 
     /**
      * Convert the objects in this Result to a simpler representation (for example, converting DOM "Attr" or a JSON "string" to a Java String).
-     * Simply calls {@link EvalContext#unwrap} method for each object in the Result
+     * Simply calls {@link EvalContext#value} method for each object in the Result
      * @return this
      */
     public Result unwrap() {
         for (int i=0;i<result.size();i++) {
-            result.set(i, context.unwrap(result.get(i)));
+            result.set(i, context.value(result.get(i)));
         }
         return this;
     }
