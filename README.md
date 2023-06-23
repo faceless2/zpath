@@ -46,8 +46,8 @@ The grammar is universal: there's currently support for JSON, CBOR, XML and Java
 * finally, the top-level expression _only_ may be a comma-separateed list of **expressions**
 
 When comparing, `==` and `!=` use the Java equals() contract - what this means depends on the model,
-but generally in JSON, two strings with the same values are equal. If both strings come from the model,
-to check they are also the same node use `===` and `!==` (strict equals, string not-equals)
+but generally in JSON, two strings in the model with the same value are equal. To check both strings
+are the same node, use the strict comparisons `===` and `!==`
 
 ## ZPath Evaluation
 * Evaluation starts with a _context node_ which is supplied by the caller, which forms the initial **node set**
