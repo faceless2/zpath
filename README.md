@@ -34,7 +34,8 @@ The grammar is universal: there's currently support for JSON, CBOR, XML and Java
 ## ZPath Parsing
 
 * an **expression** may be a **function**, a **path**, a string (in quotes), a number, or a combination of these using normal C-like operators
-* binary operators `+ - * / % && || ^ & |` and the ternary operator `? :` require white-space to either side
+* binary operators `+ - * / % && || ^ & | == != >= <= > < === !==` require whitespace on either side
+* the ternary operator `? :` requires white-space either side of `?` and `:`. Unary operators `~` and `!` do not.
 * a **path** is constructed like a UNIX file path, a list of **segments** seperated with `/`
 * a path **segment** can be `*`, `**`, `..`, a **name**, an **index** (`#`integer), both (**name**`#`integer) or a **function**
 * each **segment** may followed by zero or more **qualifying expressions** (an **expression** inside square brackets)
@@ -43,6 +44,10 @@ The grammar is universal: there's currently support for JSON, CBOR, XML and Java
 * **arguments** depend on the function, but are typically **expressions**
 * that characters `\n \r \t ( ) [ ] / , = & | ! < > #` and space in a **name** must be backslash-escaped
 * finally, the top-level expression _only_ may be a comma-separateed list of **expressions**
+
+When comparing, `==` and `!=` use the Java equals() contract - what this means depends on the model,
+but generally in JSON, two strings with the same values are equal. If both strings come from the model,
+to check they are also the same node use `===` and `!==` (strict equals, string not-equals)
 
 ## ZPath Evaluation
 * Evaluation starts with a _context node_ which is supplied by the caller, which forms the initial **node set**
