@@ -33,6 +33,8 @@ public class Term implements Axis {
 
     /** The "!" Token */
     public static final Term BANG = new Term("!", 2);
+    /** The "~" Token */
+    public static final Term TILDE = new Term("~", 2);
     /** The "*" Token */
     public static final Term STAR = new Term("*", 3);
     /** The "**" Token */

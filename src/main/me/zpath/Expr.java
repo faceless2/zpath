@@ -103,6 +103,11 @@ class Expr extends Term {
                     Object ln = evalTermAsObject("op", lhs, node, tmp, context);
                     boolean b = booleanValueRequired(context, ln);
                     result = Boolean.valueOf(!b);
+                } else if (op == Term.TILDE) {
+                    Number ln = numberValue(context, evalTermAsObject("lhs", lhs, node, tmp, context));
+                    if (ln != null) {
+                        result = Integer.valueOf(~ln.intValue());
+                    }
                 } else if (op == Term.PLUS || op == Term.MINUS || op == Term.STAR || op == Term.SLASH || op == Term.PERCENT) {
                     Number ln = numberValue(context, evalTermAsObject("lhs", lhs, node, tmp, context));
                     Number rn = numberValue(context, evalTermAsObject("rhs", rhs, node, tmp, context));

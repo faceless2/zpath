@@ -572,6 +572,8 @@ public class ZPath {
                 }
             } else if (c == '/') {
                 tokens.add(Term.SLASH);
+            } else if (c == '~') {
+                tokens.add(Term.TILDE);
             } else if (c == '!') {
                 if (i + 1 < len && in.codePointAt(i + 1) == '=') {
                     if (i + 2 < len && in.codePointAt(i + 2) == '=') {
