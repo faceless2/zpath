@@ -77,34 +77,12 @@ class Path extends Term {
                 // with *also* uses atomic values - a list containing
                 // two copies of the same string. We can't distinguish
                 // this, but we also can't identify it's key if it's
-                // stored twice. So park that for now.
+                // stored twice. In many non-Java languages (eg JS)
+                // this is how it's going to be.
                 // 
-                if (axis instanceof FunctionAxis) {
-                    tmpin.clear();
-                    int dupcount = 0;
-                    for (int j=0;j<tmpout.size();j++) {
-                        Object n = tmpout.get(j);
-                        if (Expr.isPrimitive(n)) {
-                            tmpin.add(n);
-                        } else {
-                            // Only add it if it's not there. This has to be done with "=="
-                            // Could use IdentityHashMap
-                            for (int k=0;k<tmpin.size();k++) {
-                                if (tmpin.get(k) == n) {
-                                    n = null;
-                                    break;
-                                }
-                            }
-                            if (n != null) {
-                                tmpin.add(n);
-                            }
-                        }
-                    }
-                } else {
-                    List<Object> t = tmpout;
-                    tmpout = tmpin;
-                    tmpin = t;
-                }
+                List<Object> t = tmpout;
+                tmpout = tmpin;
+                tmpin = t;
             }
             out.addAll(tmpin);
             if (logger != null) {

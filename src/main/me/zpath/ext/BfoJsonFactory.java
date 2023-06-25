@@ -123,17 +123,14 @@ public class BfoJsonFactory implements EvalFactory {
             return null;
         }
 
-        @Override public boolean booleanValue(final Object o) {
+        @Override public Boolean booleanValue(final Object o) {
             if (o instanceof Json) {
                 Json json = (Json)o;
                 if (json.isBoolean()) {
                     return json.booleanValue();
-                } else if (json.isNull() || json.isUndefined()) {
-                    return false;
                 }
-                return true;
             }
-            return true;
+            return null;
         }
 
         @Override public Object key(final Object o) {
@@ -147,7 +144,8 @@ public class BfoJsonFactory implements EvalFactory {
                 } else {
                     for (Map.Entry<Object,Json> e : parent.mapValue().entrySet()) {
                         if (e.getValue() == json) {
-                            return e.getKey();
+                            Object k = e.getKey();
+                            return k == null ? NULL : k;
                         }
                     }
                 }
@@ -206,6 +204,14 @@ public class BfoJsonFactory implements EvalFactory {
                 }
             }
             return o;
+        }
+
+        public boolean isParent(Object o) {
+            if (o instanceof Json) {
+                Json json = (Json)o;
+                return json.isMap() || json.isList();
+            }
+            return false;
         }
 
     }

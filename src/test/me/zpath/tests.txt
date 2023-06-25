@@ -80,7 +80,7 @@ index(numbers/#1)							1
 /..									NULL
 ..									NULL
 ../*									NULL
-index()									NULL
+index()									0
 index(..)								NULL
 count(numbers/*)							3
 first, first,last							/first,/first,/last
@@ -97,13 +97,16 @@ intersection(first, first, last)					NULL
 **/typetest[type(missingvalue) == "null"]				NULL
 **/typetest[type(missingvalue) == "undefined"]				/typetest
 **/numbers/*/count(*)							2,2,2
-**/numbers/*/eval(..)/*							/numbers/0,/numbers/1,/numbers/2	# duplicates removed
-count(**/eval(/**)/eval(/**)/eval(/**)) < 50				true	# duplicates removed
+**/numbers/*/union(..)/*							/numbers/0,/numbers/1,/numbers/2	# duplicates removed
+count(**/union(/**)/union(/**)/union(/**)) < 50				true	# duplicates removed
 count(/**)								30
 count(**)								30
-count(eval(**))								30
-count(eval(/**))							30
-count(eval(/**/eval(/**)))						30
+count(union(**))							23
+count(union(/**))							23
+count(union(/**/union(/**)))						23
+count(eval(**))								23
+count(eval(/**))							23
+count(eval(/**/eval(/**)))						23
 
 # Ambiguity between path and operators
 index(numbers/*[type == 'home']) == 1					true
@@ -219,6 +222,7 @@ body/table/*[@class == "second"]					/body/table/tr[1]
 body/table/..								/body
 count(**/tr)								3
 **/person[name == "John"]						/body/person
+**/person[string(name) == "John"]					/body/person
 **/person[data]								/body/person
 **/person[foo]								NULL
 **/tr[@id && index() == 1]						/body/table/tr[1]

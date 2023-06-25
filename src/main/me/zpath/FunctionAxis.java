@@ -28,7 +28,7 @@ class FunctionAxis extends Term implements Axis {
         return true;
     }
 
-    @Override public List<Object> eval(final List<Object> in, final List<Object> out, EvalContext context) {
+    private Function getFunction(EvalContext context) {
         Function function = this.function;
         if (function == null) {
             function = context.getFunction(name);
@@ -36,10 +36,13 @@ class FunctionAxis extends Term implements Axis {
                 throw new IllegalStateException("No such function " + name + "()");
             }
         }
+        return function;
+    }
+
+    @Override public List<Object> eval(final List<Object> in, final List<Object> out, EvalContext context) {
+        Function function = getFunction(context);
         if (path) {
-            for (int i=0;i<in.size();i++) {
-                function.eval(name, args, Collections.<Object>singletonList(in.get(i)), out.subList(out.size(), out.size()), context);
-            }
+            function.eval(name, args, in, out, context);
         } else {
             function.eval(name, args, in, out, context);
         }

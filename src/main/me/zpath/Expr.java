@@ -70,7 +70,7 @@ class Expr extends Term {
                 node = null;
             }
             if (logger != null) {
-                logger.log(this + " eval " + name + ": value=" + node + " primitive=" + isPrimitive(node));
+                logger.log(this + " eval " + name + ": value=" + node + " parentable=" + context.isParent(node));
             }
         } finally {
             if (logger != null) {
@@ -82,12 +82,6 @@ class Expr extends Term {
 
     @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
         final Configuration.Logger logger = context.getLogger();
-        // This particular type of axis can only ever be evaluated on a single node.
-        // a/b[...] - evaluated once for each b, separately
-        // a/b/eval(...) - evaluated once for each b, separately
-        // syntax doesn't allow multiple nodes as input
-
-        assert in.size() == 1;
         for (Object node : in) {
             List<Object> tmp = out.subList(out.size(), out.size());     // But, just in case, do this.
             try {
@@ -99,7 +93,7 @@ class Expr extends Term {
                 Object result = null;
                 if (op == Term.QUESTION) {
                     Object ln = evalTermAsObject("test", lhs, node, tmp, context);
-                    boolean b = booleanValue(context, ln);
+                    boolean b = booleanValueRequired(context, ln);
                     if (b) {
                         result = evalTermAsObject("truevalue", rhs, node, tmp, context);
                     } else {
@@ -107,7 +101,7 @@ class Expr extends Term {
                     }
                 } else if (op == Term.BANG) {
                     Object ln = evalTermAsObject("op", lhs, node, tmp, context);
-                    boolean b = booleanValue(context, ln);
+                    boolean b = booleanValueRequired(context, ln);
                     result = Boolean.valueOf(!b);
                 } else if (op == Term.PLUS || op == Term.MINUS || op == Term.STAR || op == Term.SLASH || op == Term.PERCENT) {
                     Number ln = numberValue(context, evalTermAsObject("lhs", lhs, node, tmp, context));
@@ -196,103 +190,28 @@ class Expr extends Term {
                 } else if (op == Term.GE || op == Term.GT || op == Term.LT || op == Term.LE || op == Term.EQ || op == Term.NE || op == Term.EEQ || op  == Term.NEE) {
                     Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
                     Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
-                    //
-                    // {a:30, b:25} : a >= b, is that true? Different nodes, same value. What about a == b?
-                    // XPath solves this by using "eq" and "==" to mean different things, but that's awful.
-                    // Ultimately we can't ignore this and can't pick a correct option, so use "==" for ".equals()"
-                    // and "===" for identity-equality. Meaning depends on the underlying model,
-                    // for Json deserializers that use Collections, they'll be the same.
-                    //
-                    // We can't have two different nodes being equal just if they have the same value,
-                    // in XML (eg) it would mean two text nodes with the same values are the same. So
-                    // our rule is:
-                    //  * if either side is a string/number/boolean, compare by value.
-                    //  * otherwise test for equality only.
-                    // 
                     boolean strict = op == Term.EEQ || op == Term.NEE;  // if set we must compare on identity equals
-                    if (ln != null && rn != null) {
-                        double v = Double.NaN;
-                        if (strict ? isPrimitive(ln) && isPrimitive(rn) : isPrimitive(ln) || isPrimitive(rn)) {
-                            // value comparison
-                            Number ld = numberValue(context, ln);
-                            Number rd = numberValue(context, rn);
-                            if (ld != null && rd != null) {     // Both numbers
-                                // FFS, Number is not Comparable...
-                                if (ld instanceof BigDecimal || rd instanceof BigDecimal || (ld instanceof BigInteger && (rd instanceof Double || rd instanceof Float)) || (rd instanceof BigInteger && (ld instanceof Double || ld instanceof Float))) {
-                                    ld = ld instanceof BigDecimal ? ld : new BigDecimal(ld.toString());
-                                    rd = rd instanceof BigDecimal ? rd : new BigDecimal(rd.toString());
-                                    v = ((BigDecimal)ld).compareTo((BigDecimal)rd);
-                                } else if (rd instanceof Double || rd instanceof Float || ld instanceof Double || ld instanceof Float) {
-                                    double d = ld.doubleValue() - rd.doubleValue();
-                                    if (Math.abs(d) < context.getConfiguration().getMinDouble()) {
-                                        d = 0;
-                                    }
-                                    v = d < 0 ? -1 : d > 0 ? 1 : 0;
-                                } else if (rd instanceof BigInteger || rd instanceof BigInteger) {
-                                    ld = ld instanceof BigInteger ? ld : new BigInteger(ld.toString());
-                                    rd = rd instanceof BigInteger ? rd : new BigInteger(rd.toString());
-                                    v = ((BigInteger)ld).compareTo((BigInteger)rd);
-                                } else {
-                                    v = Long.compare(ld.longValue(), rd.longValue());
-                                }
-                            } else {
-                                String ls = stringValue(context, ln);
-                                String rs = stringValue(context, rn);
-                                if (ls != null && rs != null) { // If both sides are strings, compare as strings
-                                    v = ls.compareTo(rs);
-                                } else {
-                                    // Careful now.
-                                    // We don't have a boolean constant natively, but we can generate one
-                                    // * (1 == 1) == (1 > 0)            true, both sides are native booleans
-                                    // * (1 == 1) == "test"             false, only one side is a boolean
-                                    // * (1 == 1) == a                  true regardless of the value of "a", because a exists: same as "!!a" or "a"
-                                    // For the latter it would have to be (1 == 1) == value(a)
-                                    // * a == 1                         false, although we're collapsing a to true and 1 to true.
-                                    // So at least one side has to be an actual boolean here otherwise we fail.
-                                    if (ln instanceof Boolean || rn instanceof Boolean) {
-                                        v = booleanValue(context, ln) == booleanValue(context, rn) ? 0 : Double.NaN;
-                                    } else {
-                                        v = Double.NaN;
-                                    }
-                                }
-                            }
-                        } else if (strict) {
-                            // strict instance comparison
-                            v = (ln == null ? rn == null : ln == rn) ? 0 : Double.NaN;
-                        } else {
-                            // non-strict instance comparison
-                            v = (ln == null ? rn == null : ln.equals(rn)) ? 0 : Double.NaN;
-                        }
-                        if (v == v && Math.abs(v) <= context.getConfiguration().getMinDouble()) {     // Rounding error
-                            v = 0;
-                        }
-                        if (v > 0) {
-                            result = Boolean.valueOf(op == Term.GE || op == Term.GT || op == Term.NE || op == Term.NEE);
-                        } else if (v < 0) {
-                            result = Boolean.valueOf(op == Term.LE || op == Term.LT || op == Term.NE || op == Term.NEE);
-                        } else if (v == 0) {
-                            result = Boolean.valueOf(op == Term.GE || op == Term.LE || op == Term.EQ || op == Term.EEQ);
-                        } else {
-                            result = Boolean.valueOf(op == Term.NE || op == Term.NEE);    // 3 < "string" == false
-                        }
-                    } else if (ln == null && rn == null) {
-                        // Are two missing nodes equal to eachother? No
-                        result = op == Term.NE;
+                    double v = compare(ln, rn, strict, context);
+                    if (v > 0) {
+                        result = Boolean.valueOf(op == Term.GE || op == Term.GT || op == Term.NE || op == Term.NEE);
+                    } else if (v < 0) {
+                        result = Boolean.valueOf(op == Term.LE || op == Term.LT || op == Term.NE || op == Term.NEE);
+                    } else if (v == 0) {
+                        result = Boolean.valueOf(op == Term.GE || op == Term.LE || op == Term.EQ || op == Term.EEQ);
                     } else {
-                        // Missing is never equal to not-missing
-                        result = op == Term.NE;
+                        result = Boolean.valueOf(op == Term.NE || op == Term.NEE);
                     }
                 } else if (op == Term.AND) {
                     Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
                     Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
-                    boolean eq = ln != null && rn != null && booleanValue(context, ln) && booleanValue(context, rn); 
+                    boolean eq = ln != null && rn != null && booleanValueRequired(context, ln) && booleanValueRequired(context, rn); 
                     result = Boolean.valueOf(eq);
                 } else if (op == Term.OR) {
                     Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
-                    boolean eq = ln != null && booleanValue(context, ln);
+                    boolean eq = ln != null && booleanValueRequired(context, ln);
                     if (!eq) {
                         Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
-                        eq = rn != null && booleanValue(context, rn);
+                        eq = rn != null && booleanValueRequired(context, rn);
                     }
                     result = Boolean.valueOf(eq);
                 }
@@ -333,15 +252,21 @@ class Expr extends Term {
         return context.numberValue(node);
     }
 
-    static boolean booleanValue(EvalContext context, Object node) {
-        if (node == null) {
-            return false;
-        } else if (node instanceof Boolean) {
-            return ((Boolean)node).booleanValue();
+    static Boolean booleanValue(EvalContext context, Object node) {
+        if (node instanceof Boolean) {
+            return (Boolean)node;
         } else if (isPrimitive(node)) {
-            return true;
+            return null;
+        }
+        return context.booleanValue(node);
+    }
+
+    static boolean booleanValueRequired(EvalContext context, Object node) {
+        Boolean b = booleanValue(context, node);
+        if (b != null) {
+            return b.booleanValue();
         } else {
-            return context.booleanValue(node);
+            return node != null && node != EvalContext.NULL && context.value(node) != null;
         }
     }
 
@@ -383,5 +308,78 @@ class Expr extends Term {
         return o == null || o instanceof Number || o instanceof CharSequence || o instanceof Boolean;
     }
 
+    // Return 0=equal, >0 = a>b, <0 = a<b, NaN a!=b
+    @SuppressWarnings("unchecked")
+    static double compare(Object a, Object b, boolean strict, EvalContext context) {
+        if (a == null && b == null) {
+            return Double.NaN;
+        } else if (a == null || b == null) {
+            return Double.NaN;
+        } else if (a == b) {
+            return 0;
+        } else {
+            // Both items are primitives, either in tree or literals, and we are not strict.
+            // Must check numbers first, as we can't use equals() if we want to handle rounding error
+            Number na = numberValue(context, a);
+            Number nb = numberValue(context, b);
+            if (na != null && nb != null) {
+                return compare(na, nb, context);
+            }
+            String sa = stringValue(context, a);
+            String sb = stringValue(context, b);
+            if (sa != null && sb != null) {
+                return sa.compareTo(sb);
+            }
+            Boolean ba = booleanValue(context, a);
+            Boolean bb = booleanValue(context, b);
+            if (ba != null && bb != null) {
+                return ba.equals(bb) ? 0 : Double.NaN;
+            }
+            if (a.getClass() == b.getClass()) {
+                if (a instanceof Comparable) {
+                    return ((Comparable)a).compareTo(b);
+                } else if (a.equals(b)) {
+                    return 0;
+                } else {
+                    return Double.NaN;
+                }
+            }
+            if (strict) {
+                return a == b ? 0 : Double.NaN;
+            } else {
+                return a.equals(b) ? 0 : Double.NaN;
+            }
+        }
+    }
+
+    static int compare(Number a, Number b, EvalContext context) {
+        // FFS, Number is not Comparable...
+        int v;
+        if (a instanceof BigDecimal || b instanceof BigDecimal || (a instanceof BigInteger && (b instanceof Double || b instanceof Float)) || (b instanceof BigInteger && (a instanceof Double || a instanceof Float))) {
+            a = a instanceof BigDecimal ? a : new BigDecimal(a.toString());
+            b = b instanceof BigDecimal ? b : new BigDecimal(b.toString());
+            v = ((BigDecimal)a).compareTo((BigDecimal)b);
+        } else if (b instanceof Double || b instanceof Float || a instanceof Double || a instanceof Float) {
+            double d = a.doubleValue() - b.doubleValue();
+            if (Math.abs(d) < context.getConfiguration().getMinDouble()) {
+                d = 0;
+            }
+            v = d < 0 ? -1 : d > 0 ? 1 : 0;
+        } else if (b instanceof BigInteger || b instanceof BigInteger) {
+            a = a instanceof BigInteger ? a : new BigInteger(a.toString());
+            b = b instanceof BigInteger ? b : new BigInteger(b.toString());
+            v = ((BigInteger)a).compareTo((BigInteger)b);
+        } else {
+            v = Long.compare(a.longValue(), b.longValue());
+        }
+        return v;
+    }
+
+    // the rules
+    //
+    // [a]              true if a exists at all, even if its null
+    // [a == true]      true if a exists and the value of a == true
+    // [!!a]            true if a exists and is not false or null
+    // [a == b]         true if a == b or if a and b are both boolean
 
 }

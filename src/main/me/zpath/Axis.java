@@ -39,12 +39,18 @@ interface Axis {
         return new Axis() {
             @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
                 final Configuration.Logger logger = context.getLogger();
-                // Our input is guaranteed to have no duplicates, which means
-                // the output can have no duplicates as a child can only belong
-                // to one parent.
+                // Duplicate handling: assuming a tree where every primitive value
+                // is distinct, because the parents have no duplicate, children
+                // will have no duplicates. However if values are shared (primitive
+                // or complex) then the output could have duplicates. Primitives
+                // are OK, others are invalid. So allow dups.
+                //
                 for (Object node : in) {
                     int c = name != null ? index : ANYINDEX;
                     for (Object n : context.get(node, name != null ? name : Integer.valueOf(index))) {
+                        if (n == null) {
+                            n = EvalContext.NULL;
+                        }
                         if (c == ANYINDEX || c-- == 0) {
                             out.add(n);
                             if (logger != null) {
@@ -109,25 +115,40 @@ interface Axis {
         @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
             final Configuration.Logger logger = context.getLogger();
             Stack<Object> stack = new Stack<Object>();
-            // Input has no duplicates, tree descent for each node will
-            // contain no duplicates, but tree descent for more than
-            // one node could contain duplicates.
-            Set<Object> seen = in.size() < 2 ? null : new HashSet<Object>(out); // optimization - don't track seen if list is empty
+            // Duplicate handling: assuming a tree where every primitive value
+            // is distinct, there will be no duplicates if in.size() == 1.
+            // If primitives are duplicated it's the same for axisKey, and
+            // if complex items are dups it's cyclic and things crash.
+            //
+            // However if in.size > 1 then duplicates of complex items
+            // are possible: div/** would exhibit this if model had nested divs.
+            // So find those, but only do so for non-primitives, because it's
+            // faster and will match other languages better.
+            //
+            // Note if we traverse and hit a complex item we've seen we can
+            // stop: if item is a duplicate, its children will be too.
+            //
+            // Choice of "seen" doesn't matter; only items in it will be maps/lists etc.
+            // Identity is probably faster than Hash
+            Set<Object> seen = Collections.<Object>newSetFromMap(new IdentityHashMap<Object,Boolean>());
             List<Object> temp = new ArrayList<Object>();
             for (Object node : in) {
                 // Iterative depth first traversal from node
                 stack.push(node);
                 while (!stack.isEmpty()) {
                     Object n = stack.pop();
-                    temp.clear();
-                    for (Object o : context.get(n, EvalContext.WILDCARD)) {
-                        temp.add(o);
-                    }
-                    for (int j=temp.size()-1;j>=0;j--) {
-                        stack.push(temp.get(j));
-                    }
-                    if (seen == null || seen.add(n)) {
+                    if (seen == null || !context.isParent(n) || seen.add(n)) {
                         out.add(n);
+                        temp.clear();
+                        for (Object o : context.get(n, EvalContext.WILDCARD)) {
+                            if (o == null) {
+                                o = EvalContext.NULL;
+                            }
+                            temp.add(o);
+                        }
+                        for (int j=temp.size()-1;j>=0;j--) {
+                            stack.push(temp.get(j));
+                        }
                     }
                     if (logger != null) {
                         logger.log("match: " + n);
@@ -148,7 +169,9 @@ interface Axis {
     static Axis PARENT = new Axis() {
         @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
             final Configuration.Logger logger = context.getLogger();
-            Set<Object> seen = new HashSet<Object>(out);
+            // Choice of "seen" doesn't matter; only items in it will be maps/lists etc.
+            // Identity is probably faster than Hash
+            Set<Object> seen = Collections.<Object>newSetFromMap(new IdentityHashMap<Object,Boolean>());
             for (Object node : in) {
                 Object parent = context.parent(node);
                 if (parent != null && seen.add(parent)) {
@@ -225,7 +248,11 @@ interface Axis {
                     context.setContext(i, contextObjects);
                     tmp.clear();
                     term.eval(Collections.<Object>singletonList(node), tmp, context);
-                    boolean match = !tmp.isEmpty() && (term.isPath() || Expr.booleanValue(context, tmp.iterator().next()));
+                    boolean match = false;
+                    if (!tmp.isEmpty()) {
+                        Object n = tmp.get(0);
+                        match = n == EvalContext.NULL || context.value(n) == null || Expr.booleanValueRequired(context, n);
+                    }
                     if (match) {
                         out.add(node);
                     }

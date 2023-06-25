@@ -167,8 +167,8 @@ public class JavaCollectionFactory implements EvalFactory {
             return null;
         }
 
-        @Override public boolean booleanValue(Object o) {
-            return true;
+        @Override public Boolean booleanValue(Object o) {
+            return null;
         }
 
         @Override public Object key(Object o) {
@@ -198,6 +198,10 @@ public class JavaCollectionFactory implements EvalFactory {
 
         @Override public Object value(Object o) {
             return o;
+        }
+
+        @Override public boolean isParent(Object o) {
+            return o instanceof Collection || o instanceof Map;
         }
 
     }

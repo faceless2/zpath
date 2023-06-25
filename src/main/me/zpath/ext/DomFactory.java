@@ -196,8 +196,8 @@ public class DomFactory implements EvalFactory {
             return null;
         }
 
-        @Override public boolean booleanValue(Object o) {
-            return o != null;
+        @Override public Boolean booleanValue(Object o) {
+            return null;
         }
 
         @Override public Object key(Object o) {
@@ -248,6 +248,11 @@ public class DomFactory implements EvalFactory {
             }
             return o;
         }
+
+        @Override public boolean isParent(Object o) {
+            return o instanceof Element;
+        }
     }
+
 
 }

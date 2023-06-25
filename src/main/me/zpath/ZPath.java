@@ -187,6 +187,11 @@ public class ZPath {
                 context.getLogger().exit();
             }
         }
+        for (int i=0;i<out.size();i++) {
+            if (out.get(i) == EvalContext.NULL) {
+                out.set(i, null);
+            }
+        }
         return new Result(this, out, context);
     }
 

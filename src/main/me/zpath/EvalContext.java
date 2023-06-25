@@ -16,6 +16,8 @@ public interface EvalContext {
      */
     public static final Object WILDCARD = "*";
 
+    public static final Object NULL = new Object() { public String toString() { return "NULL"; } };
+
     /**
      * If the node is not the root element of the structure, return its parent, otherwise return null
      * @param o the node
@@ -51,7 +53,7 @@ public interface EvalContext {
      * @param o the node
      * @return the value as a boolean
      */
-    public boolean booleanValue(Object o);
+    public Boolean booleanValue(Object o);
 
     /**
      * Return the first child of this Node that is stored with the specified key,
@@ -101,6 +103,13 @@ public interface EvalContext {
     public Object value(Object o);
 
     /**
+     * Return true if the supplied object is a type of Node
+     * in this structure which could potentially have children;
+     * it's a list, map, DOM element etc.
+     */
+    public boolean isParent(Object o);
+
+    /**
      * Return the Function matching this name in this context, or null if there's no match
      * @param name the function name
      * @return the Function or null
@@ -138,5 +147,4 @@ public interface EvalContext {
      * @return the nodeset
      */
     public List<Object> getContext();
-
 }

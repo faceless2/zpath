@@ -222,7 +222,22 @@ public class Configuration {
                 return args.size() == 1;
             }
             @Override public void eval(String name, List<Term> args, List<Object> in, List<Object> out, EvalContext context) {
-                args.get(0).eval(in, out, context);
+                Set<Object> seen = new HashSet<Object>();
+                for (Object node : in) {
+                    List<Object> in1 = Collections.<Object>singletonList(node);
+                    Term t = args.get(0);
+                    if (t instanceof Path) {
+                        List<Object> tmp = new ArrayList<Object>();
+                        t.eval(in1, tmp, context);
+                        for (Object o : tmp) {
+                            if (seen.add(o)) {
+                                out.add(o);
+                            }
+                        }
+                    } else {
+                        t.eval(in1, out, context);
+                    }
+                }
             }
         });
         CONFIG.getFunctions().add(new Function() {
@@ -284,10 +299,13 @@ public class Configuration {
                 return args.size() <= 1;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
-                for (Object node : args.isEmpty() ? in : args.get(0).eval(in, new ArrayList<Object>(), context)) {
-                    Object s = context.key(node);
-                    if (s != null) {
-                        out.add(s);
+                for (Object n : in) {
+                    List<Object> in1 = Collections.<Object>singletonList(n);
+                    for (Object node : args.isEmpty() ? in1 : args.get(0).eval(in1, new ArrayList<Object>(), context)) {
+                        Object s = context.key(node);
+                        if (s != null) {
+                            out.add(s);
+                        }
                     }
                 }
             }
@@ -307,6 +325,11 @@ public class Configuration {
                 if (args.isEmpty()) {
                     if (context.getContextIndex() >= 0) {
                         out.add(context.getContextIndex());
+                    } else {
+                        int count = 0;
+                        for (Object n : in) {
+                            out.add(count++);
+                        }
                     }
                 } else {
                     for (Object node : args.get(0).eval(in, new ArrayList<Object>(), context)) {
@@ -329,27 +352,37 @@ public class Configuration {
             public boolean matches(String name) {
                 return "count".equals(name);
             }
-            public boolean verify(final String name, final List<Term> terms) {
-                return terms.size() <= 1;
+            public boolean verify(final String name, final List<Term> args) {
+                return args.size() <= 1;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 if (args.isEmpty()) {
                     if (context.getContext() != null) {
-                        out.add(context.getContext().size());
+                        out.add(context.getContext().size());   //a/b[count()]
+                    } else {
+                        for (Object node : in) {
+                            out.add(1);                         // a/b/count()
+                        }
                     }
-                } else {
-                    int count = 0;
-                    for (Object node : args.get(0).eval(in, new ArrayList<Object>(), context)) {
-                        count++;
+                } else {                                        // count(*)
+                    ArrayList<Object> tmp = new ArrayList<Object>();
+                    Term term = args.get(0);
+                    for (Object node : in) {
+                        List<Object> in1 = Collections.<Object>singletonList(node);
+                        int count = 0;
+                        for (Object n : term.eval(in1, tmp, context)) {
+                            count++;
+                        }
+                        out.add(count);
+                        tmp.clear();
                     }
-                    out.add(count);    // count(*) or *[index() + 1 == count()]
                 }
             }
         });
         CONFIG.getFunctions().add(new Function() {
             //
             // is-first()       return true if index into the current nodeset of this node == 0
-            // is-last()          return the index into the current nodeset of this node == count()-1
+            // is-last()        return the index into the current nodeset of this node == count()-1
             //
             @Override public boolean matches(String name) {
                 return "is-first".equals(name) || "is-last".equals(name);
@@ -358,40 +391,13 @@ public class Configuration {
                 return args.size() == 0;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
-                if (context.getContextIndex() >= 0 && context.getContext() != null) {
+                if (context.getContextIndex() >= 0 && context.getContext() != null) {   // a[is-first()]
                     out.add(context.getContextIndex() == ("is-first".equals(name) ? 0 : context.getContext().size() - 1));
+                } else {
+                    out.add(true);      // a/b/is-first()
                 }
             }
         });
-        /*
-        CONFIG.getFunctions().add(new Function() {
-            //
-            // match(index)     return the specified node from the current nodeset. TODO is this useful?
-            //
-            public boolean matches(String name) {
-                return "match".equals(name);
-            }
-            public boolean verify(final String name, final List<Term> terms) {
-                return terms.size() == 1;
-            }
-            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
-                List<Object> context = context.getContext();
-                if (context != null) {
-                    List<Object> tmp = new ArrayList<Object>();
-                    args.get(0).eval(in, tmp, context);
-                    if (tmp.size() > 0) {
-                        double d = tmp.doubleValue();
-                        if (d == d) {
-                            int i = (int)d;
-                            if (i >= 0 && i < context.size()) {
-                                out.add(context.get(i));
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        */
 
         CONFIG.getFunctions().add(new Function() {
             //
@@ -403,8 +409,8 @@ public class Configuration {
             public boolean matches(String name) {
                 return "prev".equals(name) || "next".equals(name);
             }
-            public boolean verify(final String name, final List<Term> terms) {
-                return terms.isEmpty();
+            public boolean verify(final String name, final List<Term> args) {
+                return args.isEmpty();
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
@@ -421,71 +427,62 @@ public class Configuration {
         // Math functions
         CONFIG.getFunctions().add(new Function() {
             public boolean matches(String name) {
-                return "min".equals(name) || "max".equals(name) || "sum".equals(name);
+                return "min".equals(name) || "max".equals(name);
             }
-            public boolean verify(final String name, final List<Term> terms) {
+            public boolean verify(final String name, final List<Term> args) {
                 return true;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
-                // This is a pain - if we're given 1000 integers and one BigDecimal, output has to be BigDecimal.
-                // Do it with doubles initially if we hit a mismatch, step up
-                double v = "sum".equals(name) ? 0 : Double.NaN;
-                BigDecimal bv = null;
+                Number v = null;
                 for (Object node : allnodes(args, in, context, CONTEXT_OR_ALL)) {
                     Number n = Expr.numberValue(context, node);
                     if (n != null) {
-                        double d = n.doubleValue();
-                        if (Double.isInfinite(d) || Math.abs(d - (long)d) >= 1) {
-                            // eek! Either really infinite, or too big for double, or we lose resolution because it's a long.
-                            // continue with BigDecimals
-                            bv = new BigDecimal(v == v ? v : d);
-                        }
-                        if (v != v) {
-                            v = d;
-                        } else if ("min".equals(name)) {
-                            if (bv != null) {
-                                bv = bv.min(new BigDecimal(d));
-                            } else {
-                                v = Math.min(v, d);
-                            }
-                        } else if ("max".equals(name)) {
-                            if (bv != null) {
-                                bv = bv.max(new BigDecimal(d));
-                            } else {
-                                v = Math.max(v, d);
-                            }
-                        } else if ("sum".equals(name)) {
-                            if (bv != null) {
-                                bv = bv.add(new BigDecimal(d));
-                            } else {
-                                v = v + d;
+                        if (v == null) {
+                            v = n;
+                        } else {
+                            int c = Expr.compare(n, v, context);
+                            if ((c < 0 && "min".equals(name)) || (c > 0 && "max".equals(name))) {
+                                v = n;
                             }
                         }
                     }
                 }
-                if (bv == null) {
-                    if (v == (int)v) {
-                        out.add((int)v);
-                    } else if (v == (long)v) {
-                        out.add((long)v);
-                    } else {
-                        out.add(v);
-                    }
-                } else {
-                    try {
-                        out.add(bv.intValueExact());
-                    } catch (Exception e1) {
-                        try {
-                            out.add(bv.longValueExact());
-                        } catch (Exception e2) {
-                            try {
-                                out.add(bv.toBigIntegerExact());
-                            } catch (Exception e4) {
-                                // We get here if there are any floating points
-                                out.add(bv.doubleValue());
-                            }
+                if (v != null) {
+                    out.add(v);
+                }
+            }
+        });
+        CONFIG.getFunctions().add(new Function() {
+            public boolean matches(String name) {
+                return "sum".equals(name);
+            }
+            public boolean verify(final String name, final List<Term> args) {
+                return true;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                // This is a pain - if we're given 1000 integers and one BigDecimal, output has to be BigDecimal.
+                Number v = null;
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_ALL)) {
+                    Number n = Expr.numberValue(context, node);
+                    if (n != null) {
+                        if (v == null) {
+                            v = n;
+                        } else if (v instanceof BigDecimal || n instanceof BigDecimal || (v instanceof BigInteger && (n instanceof Double || n instanceof Float)) || (n instanceof BigInteger && (v instanceof Double || n instanceof Float))) {
+                            v = ((BigDecimal)(v instanceof BigDecimal ? v : new BigDecimal(v.toString()))).add((BigDecimal)(v instanceof BigDecimal ? v : new BigDecimal(v.toString())));
+                        } else if (v instanceof BigInteger || n instanceof BigInteger) {
+
+                            v = ((BigInteger)(v instanceof BigInteger ? v : new BigInteger(v.toString()))).add((BigInteger)(v instanceof BigInteger ? v : new BigInteger(v.toString())));
+                        } else if (v instanceof Double || v instanceof Float || n instanceof Double || n instanceof Float) {
+                            v = Double.valueOf(v.doubleValue() + n.doubleValue());
+                        } else if (v instanceof Long || n instanceof Long) {
+                            v = Long.valueOf(v.longValue() + n.longValue());
+                        } else {
+                            v = Integer.valueOf(v.intValue() + n.intValue());
                         }
                     }
+                }
+                if (v != null) {
+                    out.add(v);
                 }
             }
         });
@@ -493,8 +490,8 @@ public class Configuration {
             public boolean matches(String name) {
                 return "ceil".equals(name) || "floor".equals(name) || "round".equals(name);
             }
-            public boolean verify(final String name, final List<Term> terms) {
-                return terms.size() <= 1;
+            public boolean verify(final String name, final List<Term> args) {
+                return args.size() <= 1;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
@@ -531,15 +528,15 @@ public class Configuration {
             public boolean matches(String name) {
                 return "type".equals(name);
             }
-            public boolean verify(final String name, final List<Term> terms) {
-                return terms.size() <= 1;
+            public boolean verify(final String name, final List<Term> args) {
+                return args.size() <= 1;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 boolean set = false;
                 for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
                     set = true;
-                    String s;
-                    if (node == null) {
+                    String s = null;
+                    if (node == EvalContext.NULL) {
                         s = "null";
                     } else if (node instanceof String) {
                         s = "string";
@@ -547,13 +544,15 @@ public class Configuration {
                         s = "number";
                     } else if (node instanceof Boolean) {
                         s = "boolean";
-                    } else {
+                    } else if (node != null) {
                         s = context.type(node);
                         if (s == null) {
                             s = node.getClass().getName();
                         }
                     }
-                    out.add(s);
+                    if (s != null) {
+                        out.add(s);
+                    }
                 }
                 if (!set) {
                     out.add("undefined");
@@ -564,13 +563,17 @@ public class Configuration {
             public boolean matches(String name) {
                 return "value".equals(name);
             }
-            public boolean verify(final String name, final List<Term> terms) {
-                return terms.size() <= 1;
+            public boolean verify(final String name, final List<Term> args) {
+                return args.size() <= 1;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 boolean set = false;
                 for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
-                    out.add(context.value(node));
+                    Object o = context.value(node);
+                    if (o == null) {
+                        o = EvalContext.NULL;
+                    }
+                    out.add(o);
                 }
             }
         });
@@ -578,8 +581,8 @@ public class Configuration {
             public boolean matches(String name) {
                 return "string".equals(name);
             }
-            public boolean verify(final String name, final List<Term> terms) {
-                return terms.size() <= 1;
+            public boolean verify(final String name, final List<Term> args) {
+                return args.size() <= 1;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
@@ -618,8 +621,8 @@ public class Configuration {
             public boolean matches(String name) {
                 return "number".equals(name);
             }
-            public boolean verify(final String name, final List<Term> terms) {
-                return terms.size() <= 1;
+            public boolean verify(final String name, final List<Term> args) {
+                return args.size() <= 1;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
@@ -699,8 +702,8 @@ public class Configuration {
             public boolean matches(String name) {
                 return "encode".equals(name);
             }
-            @Override public boolean verify(final String name, final List<Term> terms) {
-                return terms.size() <= 1;
+            @Override public boolean verify(final String name, final List<Term> args) {
+                return args.size() <= 1;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 StringBuilder sb = new StringBuilder();

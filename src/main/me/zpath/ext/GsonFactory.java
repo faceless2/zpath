@@ -167,13 +167,11 @@ public class GsonFactory implements EvalFactory {
             return null;
         }
 
-        @Override public boolean booleanValue(Object o) {
-            if (o instanceof JsonNull) {
-                return false;
-            } else if (o instanceof JsonPrimitive && ((JsonPrimitive)o).isBoolean()) {
+        @Override public Boolean booleanValue(Object o) {
+            if (o instanceof JsonPrimitive && ((JsonPrimitive)o).isBoolean()) {
                 return ((JsonPrimitive)o).getAsBoolean();
             }
-            return o != null;
+            return null;
         }
 
         @Override public Object key(Object o) {
@@ -227,6 +225,9 @@ public class GsonFactory implements EvalFactory {
             return o;
         }
 
+        @Override public boolean isParent(Object o) {
+            return o instanceof JsonObject || o instanceof JsonArray;
+        }
 
     }
 
