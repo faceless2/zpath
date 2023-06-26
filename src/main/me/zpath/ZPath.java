@@ -68,9 +68,8 @@ public class ZPath {
      */
     public static ZPath compile(String value, Configuration config) {
         if (config == null) {
-            config = Configuration.getDefault();
+            config = new Configuration();
         }
-        config = new Configuration(config);     // So it can be modified if required
         final Configuration.Logger logger = config.getLogger();
         if (logger != null) {
             logger.log("ZPath.compile \"" + value + "\"");

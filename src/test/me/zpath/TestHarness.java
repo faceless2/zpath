@@ -135,9 +135,8 @@ public class TestHarness {
         boolean ok = false;
         List<Object> out = null;
         try {
-            Configuration config = Configuration.getDefault();
+            Configuration config = new Configuration();
             if (debug) {
-                config = new Configuration(config);
                 config.setLogger(Configuration.Logger.create(System.out));
             }
             ZPath p = ZPath.compile(path, config);

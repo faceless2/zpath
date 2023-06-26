@@ -49,9 +49,6 @@ public class ZTemplate {
         if (file == null) {
             throw new IllegalArgumentException("Path is null");
         }
-        if (config == null) {
-            config = Configuration.getDefault();
-        }
         URI uri = file.toURI();
         return compile(Files.newBufferedReader(file.toPath()), config, uri, 0);
     }
@@ -68,14 +65,14 @@ public class ZTemplate {
         if (reader == null) {
             throw new IllegalArgumentException("Reader is null");
         }
-        if (config == null) {
-            config = Configuration.getDefault();
-        }
         URI uri = URI.create(".");
         return compile(reader, config, uri, 0);
     }
 
     private static ZTemplate compile(Reader reader, Configuration config, URI uri, int depth) throws IOException {
+        if (config == null) {
+            config = new Configuration();
+        }
         final String filepath = uri.equals(URI.create(".")) ? "" : uri.toString() + " ";
         LineReader in = new LineReader(reader);
         int c;

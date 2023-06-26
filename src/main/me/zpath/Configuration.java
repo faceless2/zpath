@@ -11,13 +11,13 @@ import java.math.*;
  */
 public class Configuration {
 
-    private static final Configuration CONFIG = new Configuration();
+    private static final Set<Function> FUNCTIONS = new LinkedHashSet<Function>();
+    private static final Set<EvalFactory> FACTORIES = new LinkedHashSet<EvalFactory>();
 
     private Set<EvalFactory> factories;
     private Set<Function> functions;
     private Logger logger;
-    private Locale locale;
-    private boolean closed;
+    private Locale locale = Locale.getDefault();
     private Includer includer = null;
     private int maxiterations = 1000000;
     private int maxdepth = 3;
@@ -25,7 +25,9 @@ public class Configuration {
     private long maxbytes = 1024*1024*10;               // 10MB
     private double mindouble = 0.00000001;
 
-    private Configuration() {
+    public Configuration() {
+        functions = new LinkedHashSet<Function>(FUNCTIONS);
+        factories = new LinkedHashSet<EvalFactory>(FACTORIES);
     }
 
     /** 
@@ -37,6 +39,12 @@ public class Configuration {
         factories = new LinkedHashSet<EvalFactory>(config.factories);
         logger = config.logger;
         locale = config.locale;
+        includer = config.includer;
+        maxiterations = config.maxiterations;
+        maxdepth = config.maxdepth;
+        htmlEscape = config.htmlEscape;
+        maxbytes = config.maxbytes;
+        mindouble = config.mindouble;
     }
 
     /**
@@ -45,9 +53,6 @@ public class Configuration {
      * @return this
      */
     public Configuration setLogger(Logger logger) {
-        if (closed) {
-            throw new IllegalStateException("closed");
-        }
         this.logger = logger;
         return this;
     }
@@ -92,14 +97,6 @@ public class Configuration {
      */
     public Collection<EvalFactory> getFactories() {
         return factories;
-    }
-
-    private void close() {
-        if (!closed) {
-            functions = Collections.<Function>unmodifiableSet(functions);
-            factories = Collections.<EvalFactory>unmodifiableSet(factories);
-        }
-        closed = true;
     }
 
     /**
@@ -217,15 +214,6 @@ public class Configuration {
         return includer;
     }
 
-    /**
-     * Return the default Configuration, which is read-only.
-     * To make changes, create a new Configuration using this one as a base
-     * @return the default Configuration
-     */
-    public static Configuration getDefault() {
-        return CONFIG;
-    }
-
     @SuppressWarnings("unchecked") private static <T> List<T> getServiceList(Class<T> cl) {
         List<T> list = new ArrayList<T>();
         Set<String> seen = new HashSet<String>();
@@ -309,13 +297,10 @@ public class Configuration {
     //--------------------------------------------------------------------------------------------------------------------------
 
     static {
-        CONFIG.locale = Locale.getDefault();
-        CONFIG.functions = new LinkedHashSet<Function>();
-        CONFIG.factories = new LinkedHashSet<EvalFactory>();
-        CONFIG.factories.addAll(getServiceList(me.zpath.EvalFactory.class));
+        FACTORIES.addAll(getServiceList(me.zpath.EvalFactory.class));
 
         // Core: eval, union, intersection, key, index, count
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             @Override public boolean matches(String name) {
                 return "eval".equals(name);
             }
@@ -345,7 +330,7 @@ public class Configuration {
                 }
             }
         });
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             //
             // union(...)               a union of all its arguments, removing duplicates
             //
@@ -368,7 +353,7 @@ public class Configuration {
                 }
             }
         });
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             //
             // intersection(...)        an intersection of all its arguments, removing duplicates
             //
@@ -392,7 +377,7 @@ public class Configuration {
                 out.addAll(work);
             }
         });
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             //
             // key()           return the name by which this node is typically accessed from its parent (ie string for maps/XML elements, int for arrays).
             // key(path)       for every node matching path, return name()
@@ -415,7 +400,7 @@ public class Configuration {
                 }
             }
         });
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             //
             // index()          return the index into the current nodeset of this node
             // index(path)      for every node matching path, if it can be accessed by an index from its parent, return that index.
@@ -449,7 +434,7 @@ public class Configuration {
                 }
             }
         });
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             //
             // count()          return the number of nodes in the current nodeset
             // count(path)      return the number of nodes matching path
@@ -484,7 +469,7 @@ public class Configuration {
                 }
             }
         });
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             //
             // is-first()       return true if index into the current nodeset of this node == 0
             // is-last()        return the index into the current nodeset of this node == count()-1
@@ -504,7 +489,7 @@ public class Configuration {
             }
         });
 
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             //
             // prev()           if this node can be accessed from its parent with an index, evaluates as the the node accessed from the previous index.
             // prev(x)          if the specified nodes can be accessed from their parents with an index, evaluates as the the node accessed from the previous index.
@@ -530,7 +515,7 @@ public class Configuration {
         });
 
         // Math functions
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
                 return "min".equals(name) || "max".equals(name);
             }
@@ -557,7 +542,7 @@ public class Configuration {
                 }
             }
         });
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
                 return "sum".equals(name);
             }
@@ -591,7 +576,7 @@ public class Configuration {
                 }
             }
         });
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
                 return "ceil".equals(name) || "floor".equals(name) || "round".equals(name);
             }
@@ -629,7 +614,7 @@ public class Configuration {
         });
 
         // Type functions: type, value, string, number
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
                 return "type".equals(name);
             }
@@ -664,7 +649,7 @@ public class Configuration {
                 }
             }
         });
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
                 return "value".equals(name);
             }
@@ -682,7 +667,7 @@ public class Configuration {
                 }
             }
         });
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
                 return "string".equals(name);
             }
@@ -722,7 +707,7 @@ public class Configuration {
                 }
             }
         });
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
                 return "number".equals(name);
             }
@@ -765,7 +750,7 @@ public class Configuration {
         });
 
         // Format functions: format, encode
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
                 return "format".equals(name);
             }
@@ -803,7 +788,7 @@ public class Configuration {
                 }
             }
         });
-        CONFIG.getFunctions().add(new Function() {
+        FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
                 return "encode".equals(name);
             }
@@ -822,7 +807,6 @@ public class Configuration {
                 }
             }
         });
-        CONFIG.close();
     }
 
     private static final int ALLARGS = 0;               // Iterate over args only, or nothing of no args
