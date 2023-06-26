@@ -192,19 +192,18 @@ class Expr extends Term {
                             result = Integer.valueOf(li ^ ri);
                         }
                     }
-                } else if (op == Term.GE || op == Term.GT || op == Term.LT || op == Term.LE || op == Term.EQ || op == Term.NE || op == Term.EEQ || op  == Term.NEE) {
+                } else if (op == Term.GE || op == Term.GT || op == Term.LT || op == Term.LE || op == Term.EQ || op == Term.NE) {
                     Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
                     Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
-                    boolean strict = op == Term.EEQ || op == Term.NEE;  // if set we must compare on identity equals
-                    double v = compare(ln, rn, strict, context);
+                    double v = compare(ln, rn, context);
                     if (v > 0) {
-                        result = Boolean.valueOf(op == Term.GE || op == Term.GT || op == Term.NE || op == Term.NEE);
+                        result = Boolean.valueOf(op == Term.GE || op == Term.GT || op == Term.NE); 
                     } else if (v < 0) {
-                        result = Boolean.valueOf(op == Term.LE || op == Term.LT || op == Term.NE || op == Term.NEE);
+                        result = Boolean.valueOf(op == Term.LE || op == Term.LT || op == Term.NE);
                     } else if (v == 0) {
-                        result = Boolean.valueOf(op == Term.GE || op == Term.LE || op == Term.EQ || op == Term.EEQ);
+                        result = Boolean.valueOf(op == Term.GE || op == Term.LE || op == Term.EQ);
                     } else {
-                        result = Boolean.valueOf(op == Term.NE || op == Term.NEE);
+                        result = Boolean.valueOf(op == Term.NE);
                     }
                 } else if (op == Term.AND) {
                     Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
@@ -315,7 +314,7 @@ class Expr extends Term {
 
     // Return 0=equal, >0 = a>b, <0 = a<b, NaN a!=b
     @SuppressWarnings("unchecked")
-    static double compare(Object a, Object b, boolean strict, EvalContext context) {
+    static double compare(Object a, Object b, EvalContext context) {
         if (a == null && b == null) {
             return Double.NaN;
         } else if (a == null || b == null) {
@@ -323,7 +322,7 @@ class Expr extends Term {
         } else if (a == b) {
             return 0;
         } else {
-            // Both items are primitives, either in tree or literals, and we are not strict.
+            // Both items are primitives, either in tree or literals
             // Must check numbers first, as we can't use equals() if we want to handle rounding error
             Number na = numberValue(context, a);
             Number nb = numberValue(context, b);
@@ -349,11 +348,7 @@ class Expr extends Term {
                     return Double.NaN;
                 }
             }
-            if (strict) {
-                return a == b ? 0 : Double.NaN;
-            } else {
-                return a.equals(b) ? 0 : Double.NaN;
-            }
+            return a.equals(b) ? 0 : Double.NaN;
         }
     }
 

@@ -34,7 +34,7 @@ The grammar is universal: there's currently support for JSON, CBOR, XML and Java
 ## ZPath Parsing
 
 * an **expression** may be a **function**, a **path**, a string (in quotes), a number, or a combination of these using normal C-like operators
-* binary operators `+ - * / % && || ^ & | == != >= <= > < === !==` require whitespace on either side
+* binary operators `+ - * / % && || ^ & | == != >= <= > <` require whitespace on either side
 * the ternary operator `? :` requires white-space either side of `?` and `:`. Unary operators `~` and `!` do not.
 * a **path** is constructed like a UNIX file path, a list of **segments** seperated with `/`
 * a path **segment** can be `*`, `**`, `..`, a **name**, an **index** (`#`integer), both (**name**`#`integer) or a **function**
@@ -46,8 +46,7 @@ The grammar is universal: there's currently support for JSON, CBOR, XML and Java
 * finally, the top-level expression _only_ may be a comma-separateed list of **expressions**
 
 When comparing, `==` and `!=` use the Java equals() contract - what this means depends on the model,
-but generally in JSON, two strings in the model with the same value are equal. To check both strings
-are the same node, use the strict comparisons `===` and `!==`
+but generally in JSON, two strings in the model with the same value are equal.
 
 ## ZPath Evaluation
 * Evaluation starts with a _context node_ which is supplied by the caller, which forms the initial **node set**
@@ -89,7 +88,8 @@ Types depend on the object type, and is dependent on the backing implementation.
 * XML has at least `element`, `text`, `processing-instruction` and `comment`
 
 The `eval(expression)` function is used in a path - for example, `item/eval(num(price) * num(quantity))` would
-return a list of numbers, each one value of the `price` * `quantity` children of each item.
+return a list of numbers, each one value of the `price` * `quantity` children of each item. Functions that return
+nodes from the tree are required to merge duplicates first.
 
 
 ### Math functions

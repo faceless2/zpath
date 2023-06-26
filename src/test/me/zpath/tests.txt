@@ -149,11 +149,10 @@ numbers/*[index() % 2.4 != 0]						/numbers/1,/numbers/2
 union(first == 'John' ? first : 'foo', first, last)			/first,/last
 floor(2 * 3.3)								6
 **/numvalue == **/samenumvalue						true
-**/numvalue === **/samenumvalue						false
 value(**/numvalue) == value(**/samenumvalue)				true
-/ === /									true
-**/numvalue === **/numvalue						true
-**/numbers === **/numbers/#0/..						true
+/ == /									true
+**/numvalue == **/numvalue						true
+**/numbers == **/numbers/#0/..						true
 number("1231213123213123123124124124142") > number("1231213123213123123124124124141")	true		# BigInteger test
 number("1231213123213123123124124124142") > number("1231213123213123123124124124141.9")	true		# BigDecimal test
 number("1231213123213123123124124124142") > 9999			true
