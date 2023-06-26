@@ -2,6 +2,9 @@ package me.zpath;
 
 import java.io.*;
 import java.nio.*;
+import java.nio.file.Path;
+import java.nio.file.*;
+import java.net.*;
 import java.util.*;
 
 /**
@@ -28,7 +31,6 @@ public class ZTemplate {
 
     private final TemplateNode root;
     private final Configuration config;
-    private boolean htmlEscape = true;
 
     private ZTemplate(TemplateNode root, Configuration config) {
         this.root = root;
@@ -36,14 +38,22 @@ public class ZTemplate {
     }
 
     /**
-     * Compile the ZTemplate. Calls <code>compile(reader, null)</code>
-     * @param reader the reader to read from
-     * @return a ZTemplate
+     * Compile the ZTemplate
+     * @param path the File to read the UTF-8 encoded Template from
+     * @param config the Configuration to use for the embedded ZPath expressions
      * @throws IllegalArgumenmtException if the ZPath expressions in the template cannot be parsed
      * @throws IOException if the underlying stream throws an IOException
+     * @return a ZTemplate
      */
-    public static ZTemplate compile(Reader reader) throws IOException {
-        return compile(reader, null);
+    public static ZTemplate compile(File file, Configuration config) throws IOException {
+        if (file == null) {
+            throw new IllegalArgumentException("Path is null");
+        }
+        if (config == null) {
+            config = Configuration.getDefault();
+        }
+        URI uri = file.toURI();
+        return compile(Files.newBufferedReader(file.toPath()), config, uri, 0);
     }
 
     /**
@@ -55,10 +65,18 @@ public class ZTemplate {
      * @return a ZTemplate
      */
     public static ZTemplate compile(Reader reader, Configuration config) throws IOException {
+        if (reader == null) {
+            throw new IllegalArgumentException("Reader is null");
+        }
         if (config == null) {
             config = Configuration.getDefault();
         }
+        URI uri = URI.create(".");
+        return compile(reader, config, uri, 0);
+    }
 
+    private static ZTemplate compile(Reader reader, Configuration config, URI uri, int depth) throws IOException {
+        final String filepath = uri.equals(URI.create(".")) ? "" : uri.toString() + " ";
         LineReader in = new LineReader(reader);
         int c;
         StringBuilder sb = new StringBuilder();       // only to give us direct access to the underlying chars
@@ -107,7 +125,7 @@ public class ZTemplate {
                         }
                     } while (true);
 
-                    int type = 0;       // 0 = substitution, 1 = open, 2 = close
+                    int type = 0;       // 0 = substitution, 1 = open, 2 = close, 3 = partial
                     String expression;
 
                     if (sb.length() > 1 && sb.charAt(0) == '#') {
@@ -116,6 +134,9 @@ public class ZTemplate {
                     } else if (sb.length() > 1 && sb.charAt(0) == '/') {
                         expression = sb.subSequence(1, sb.length()).toString().trim();
                         type = 2;
+                    } else if (sb.length() > 1 && sb.charAt(0) == '>') {
+                        expression = sb.subSequence(1, sb.length()).toString().trim();
+                        type = 3;
                     } else {
                         expression = sb.toString().trim();
                         type = 0;
@@ -132,20 +153,54 @@ public class ZTemplate {
                             lastline = in.line;
                             lastcol = in.column;
                         } catch (RuntimeException e) {
-                            throw new IllegalArgumentException("invalid ZPath {{" + sb + "}} at line " + tmpline + ":" + tmpcolumn, e);
+                            throw new IllegalArgumentException("invalid ZPath {{" + sb + "}} at " + filepath + "line " + tmpline + ":" + tmpcolumn, e);
                         }
                     } else if (type == 2) {
                         if (cursor.expr == null) {
-                            throw new IllegalArgumentException("mismatched close {{" + sb + "}} at line " + tmpline + ":" + tmpcolumn);
+                            throw new IllegalArgumentException("mismatched close {{" + sb + "}} at " + filepath + "line " + tmpline + ":" + tmpcolumn);
                         } else {
                             boolean match = false;
                             try {
                                 match = cursor.expr.equals(ZPath.compile(expression));
                             } catch (Exception e) {}
                             if (!match) {
-                                throw new IllegalArgumentException("mismatched close {{" + sb + "}} at line " + tmpline + ":" + tmpcolumn + ": doesn't match {{" + cursor.text + "}} from line " + cursor.line+":"+cursor.column);
+                                throw new IllegalArgumentException("mismatched close {{" + sb + "}} at " + filepath + "line " + tmpline + ":" + tmpcolumn + ": doesn't match {{" + cursor.text + "}} from line " + cursor.line+":"+cursor.column);
                             } else {
                                 cursor = cursor.parent;
+                            }
+                        }
+                    } else if (type == 3) {
+                        if (config.getTemplateIncluder() == null) {
+                            throw new IllegalArgumentException("include unavailable for {{" + sb + "}} at " + filepath + "line " + tmpline + ":" + tmpcolumn);
+                        } else if (depth == config.getTemplateMaxIncludeDepth()) {
+                            throw new IllegalArgumentException("include nesting depth " + depth + " for {{" + sb + "}} at " + filepath + "line " + tmpline + ":" + tmpcolumn);
+                        } else {
+                            URI uri2 = uri.resolve(expression);
+                            if (uri2 == null) {
+                                throw new IllegalArgumentException("include unresolvable for {{" + sb + "}} at " + filepath + "line " + tmpline + ":" + tmpcolumn);
+                            } else {
+                                Reader reader2 = null;
+                                try {
+                                    try {
+                                        reader2 = config.getTemplateIncluder().include(expression, uri2);
+                                    } catch (Exception e) {
+                                        throw new IllegalArgumentException("include failed for {{" + sb + "}} at " + filepath + "line " + tmpline + ":" + tmpcolumn, e);
+                                    }
+                                    if (reader2 == null) {
+                                        System.out.println(uri2.toString());
+                                        throw new IllegalArgumentException("include failed for {{" + sb + "}} at " + filepath + "line " + tmpline + ":" + tmpcolumn);
+                                    }
+                                    ZTemplate sub = ZTemplate.compile(reader2, config, uri2, depth + 1);
+                                    TemplateNode next = null;
+                                    for (TemplateNode t = sub.root.first;t!=null;t=next) {
+                                        next = t.next;
+                                        cursor.add(t);
+                                    }
+                                } finally {
+                                    if (reader2 != null) {
+                                        try { reader2.close(); } catch (Exception e) {}
+                                    }
+                                }
                             }
                         }
                     }
@@ -157,22 +212,14 @@ public class ZTemplate {
                 sb.append((char)c);
             }
         }
+        if (cursor.parent != null) {
+            throw new IllegalArgumentException("mismatched close: missing close for {{" + cursor.text + "}} opened at " + filepath + "line " + cursor.line+":"+cursor.column);
+        }
         if (sb.length() > 0) {
             cursor.add(new TemplateNode(sb.toString(), lastline, lastcol));
         }
-        // cursor.dump(System.out, "");
+        cursor.dump(System.out, "");
         return new ZTemplate(cursor, config);
-    }
-
-    /**
-     * Set whether this ZTemplate should escape any ZPath string expresions in a way
-     * that makes them suitable for HTML. The default is true
-     * @param htmlEscape whether to escape Strings written to the output to make them suitable for HTML
-     * @return this
-     */
-    public ZTemplate htmlEscape(boolean htmlEscape) {
-        this.htmlEscape = htmlEscape;
-        return this;
     }
 
     /**
@@ -432,7 +479,7 @@ public class ZTemplate {
                             if (buf == null) {
                                 buf = "";
                             }
-                            if (template.htmlEscape) {
+                            if (template.config.isTemplateHTMLEscape()) {
                                 buf = Expr.encodeXML((String)buf, true, null).toString();
                             }
                             off = 0;

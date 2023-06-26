@@ -136,6 +136,7 @@ ZPath expressions include both logic and context, so the syntax for using them i
 
 * `{{ expression }}` will be replaced by the value of the expression
 * `{{# expression }} content {{/ expression}` will evaluate the expression then process `content` for each matching node, evaluating any nested expressions against that node.
+* `{{> path }}` will include the specified template from the specified path and apply it. Include depths are limited (by default, to 3) so recursive includes will fail
 
 ```html
 <h1>{{person/name}}</h1>

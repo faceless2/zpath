@@ -7,8 +7,7 @@ import java.math.*;
 
 /**
  * The Configuration is a shared resourece which configures how ZPath expressions
- * are handlded. There is normally no need to deal with this class unless you
- * want to register custom functions or factories.
+ * and ZTemplates are handled.
  */
 public class Configuration {
 
@@ -19,8 +18,12 @@ public class Configuration {
     private Logger logger;
     private Locale locale;
     private boolean closed;
+    private Includer includer = null;
     private int maxiterations = 1000000;
+    private int maxdepth = 3;
+    private boolean htmlEscape = true;
     private long maxbytes = 1024*1024*10;               // 10MB
+    private double mindouble = 0.00000001;
 
     private Configuration() {
     }
@@ -39,12 +42,14 @@ public class Configuration {
     /**
      * Set a Logger to write debug messages to
      * @param logger the Logger, or null for no logging.
+     * @return this
      */
-    public void setLogger(Logger logger) {
+    public Configuration setLogger(Logger logger) {
         if (closed) {
             throw new IllegalStateException("closed");
         }
         this.logger = logger;
+        return this;
     }
 
     /**
@@ -58,9 +63,11 @@ public class Configuration {
     /**
      * Set the Locale to be used for locale-specific operations
      * @param locale, or null to use the system default
+     * @return this
      */
-    public void setLocale(Locale locale) {
+    public Configuration setLocale(Locale locale) {
         this.locale = locale == null ? Locale.getDefault() : locale;
+        return this;
     }
 
     /**
@@ -99,7 +106,19 @@ public class Configuration {
      * Get the value below which two numbers are considered identical
      */
     public double getMinDouble() {
-        return 0.00000001;
+        return mindouble;
+    }
+
+    /** 
+     * Set the value below which two double-precision numbers are considered identical
+     * @param d the minimum double - defaults to 0.00000001 to catch rounding error
+     * @return this
+     */
+    public Configuration setMinDouble(double d) {
+        if (d == d && !Double.isInfinite(d) && d >= 0) {
+            this.mindouble = d;
+        }
+        return this;
     }
 
     /**
@@ -125,11 +144,13 @@ public class Configuration {
      * Set the maximum number of bytes that can be written by a {@link ZTemplate}
      * before it fails.
      * @param maxbytes the maximum number of bytes that can be written by a template, which defaults to 10485760 (10MB)
+     * @return this
      */
-    public void setTemplateMaxOutputSize(long maxbytes) {
+    public Configuration setTemplateMaxOutputSize(long maxbytes) {
         if (maxbytes > 0) {
             this.maxbytes = maxbytes;
         }
+        return this;
     }
 
     /**
@@ -138,6 +159,62 @@ public class Configuration {
      */
     public long getTemplateMaxOutputSize() {
         return maxbytes;
+    }
+
+    /**
+     * Return the maximum depth a chain of includes into a ZTemplate can be before failing
+     * @return the maximum depth
+     */
+    public int getTemplateMaxIncludeDepth() {
+        return maxdepth;
+    }
+
+    /**
+     * Set the maximum depth a chain of includes into a ZTemplate can be before failing
+     * @param depth the maximum depth;
+     * @return this
+     */
+    public Configuration setTemplateMaxIncludeDepth(int depth) {
+        this.maxdepth = depth;
+        return this;
+    }
+
+    /**
+     * Set whether ZTemplates should escape any ZPath string expresions in a way
+     * that makes them suitable for HTML. The default is <code>true</code>
+     * @param htmlEscape whether to escape Strings written to the output to make them suitable for HTML
+     * @return this
+     */
+    public Configuration setTemplateHTMLEscape(boolean htmlEscape) {
+        this.htmlEscape = htmlEscape;
+        return this;
+    }
+
+    /**
+     * Return the "HTML escape" flag as set by {@link #setTemplateHTMLEscape}
+     * @return the HTML escape flag
+     */
+    public boolean isTemplateHTMLEscape() {
+        return htmlEscape;
+    }
+
+    /**
+     * Set the Includer to use when including content into ZTemplates created by this Configuration.
+     * The default is <code>null</code>.
+     * @param includer the includer, or null to disallow inclusions.
+     * @return this
+     */
+    public Configuration setTemplateIncluder(Includer includer) {
+        this.includer = includer;
+        return this;
+    }
+
+    /**
+     * Return the Includer set by {@link #setTemplateIncluder}.
+     * @return the includer
+     */
+    public Includer getTemplateIncluder() {
+        return includer;
     }
 
     /**
