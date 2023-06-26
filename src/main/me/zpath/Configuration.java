@@ -106,14 +106,38 @@ public class Configuration {
      * Return the maximum nuber of iterations that a ZTemplate can cycle
      * for before failing.
      */
-    public int getMaxIterations() {
+    public int getTemplateMaxIterations() {
         return maxiterations;
     }
 
-    public void setMaxIterations(int maxiterations) {
-        if (maxiterations <= 0) {
-            maxiterations = Integer.MAX_VALUE;
+    /**
+     * Set the maximum nuber of iterations that a ZTemplate can cycle
+     * for before failing.
+     * @param maxiterations the maximum iterations, which defaults to 1000000.
+     */
+    public void setTemplateMaxIterations(int maxiterations) {
+        if (maxiterations > 0) {
+            this.maxiterations = maxiterations;
         }
+    }
+
+    /**
+     * Set the maximum number of bytes that can be written by a {@link ZTemplate}
+     * before it fails.
+     * @param maxbytes the maximum number of bytes that can be written by a template, which defaults to 10485760 (10MB)
+     */
+    public void setTemplateMaxOutputSize(long maxbytes) {
+        if (maxbytes > 0) {
+            this.maxbytes = maxbytes;
+        }
+    }
+
+    /**
+     * Return the maximum number of bytes that can be written by a {@link ZTemplate}, as set by {@link #setTemplateMaxOutputSize}
+     * @return the maximum number of bytes
+     */
+    public long getTemplateMaxOutputSize() {
+        return maxbytes;
     }
 
     /**
@@ -223,9 +247,9 @@ public class Configuration {
             }
             @Override public void eval(String name, List<Term> args, List<Object> in, List<Object> out, EvalContext context) {
                 Set<Object> seen = new HashSet<Object>();
+                Term t = args.get(0);
                 for (Object node : in) {
                     List<Object> in1 = Collections.<Object>singletonList(node);
-                    Term t = args.get(0);
                     if (t instanceof Path) {
                         List<Object> tmp = new ArrayList<Object>();
                         t.eval(in1, tmp, context);
@@ -237,6 +261,10 @@ public class Configuration {
                     } else {
                         t.eval(in1, out, context);
                     }
+                }
+                if (!(t instanceof Path) && out.size() > in.size()) {
+                    // Check this to prevent abuse.
+                    throw new IllegalStateException("eval generated " + out.size() + " nodes from " + in.size() + " inputs");
                 }
             }
         });

@@ -316,6 +316,7 @@ public class ZTemplate {
         private String buf;                     // The text buffer being read from
         private int off;                        // How far into that text buffer we are
         private int round;
+        private long bytecount;
 
         /**
          * @param template the source template
@@ -443,8 +444,12 @@ public class ZTemplate {
 //                    System.out.println("## EVAL: ctx="+ctx+" o="+out);
                     ctx = new TemplateContext(ctx, ctx.model, ctx.cursor, out);
                 }
-            } while (off == buf.length() && round < template.config.getMaxIterations());
-            if (round == template.config.getMaxIterations()) {
+            } while (off == buf.length() && round < template.config.getTemplateMaxIterations());
+            bytecount += buf.length();
+            if (bytecount > template.config.getTemplateMaxOutputSize()) {
+                throw new IllegalStateException("Maximum output size exceeded: " + bytecount);
+            }
+            if (round == template.config.getTemplateMaxIterations()) {
                 throw new IllegalStateException("Maximum iterations exceeded: " + round);
             }
         }
