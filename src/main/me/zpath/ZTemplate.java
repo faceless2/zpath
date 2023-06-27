@@ -202,6 +202,7 @@ public class ZTemplate {
                     }
                     sb.setLength(0);
                 } else {
+                    sb.append('{');
                     sb.append((char)c);
                 }
             } else {
@@ -356,6 +357,7 @@ public class ZTemplate {
     private static class TemplateMergingReader extends Reader {
         private final EvalContext evalcontext;
         private final ZTemplate template;
+        private final Object modelroot;
         private TemplateContext ctx;        // The read context (the top of the stack)
         private String buf;                     // The text buffer being read from
         private int off;                        // How far into that text buffer we are
@@ -368,6 +370,7 @@ public class ZTemplate {
          * @param evalcontext the EvalContext
          */
         TemplateMergingReader(ZTemplate template, Object model, EvalContext evalcontext) {
+            this.modelroot = model;
             this.template = template;
             this.evalcontext = evalcontext;
             this.buf = "";
@@ -486,14 +489,14 @@ public class ZTemplate {
                     TemplateContext prevctx = null, nextctx = ctx;
                     ctx.setAscending();
                     List<Object> all = result.all();
-                    Object parentobject = ctx.model;
                     // Build a list of TemplateContext models which evaluate our subtree, once for each item in the result. 
                     for (int i=0;i<all.size();i++) {
                         Object o = all.get(i);
                         if (o == null || Boolean.FALSE.equals(o)) {
                             // object is null or false - skip
                         } else {
-                            TemplateContext newctx = new TemplateContext(evalcontext.isParent(o) ? o : parentobject, ctx.node(), evalcontext, i, all);
+                            boolean intree = o == modelroot || evalcontext.parent(o) != null;      // true if "o" is in the model tree
+                            TemplateContext newctx = new TemplateContext(intree ? o : nextctx.model, ctx.node(), evalcontext, i, all);
                             if (i == 0) {
                                 ctx = newctx;
                             }
