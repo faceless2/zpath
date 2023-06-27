@@ -238,6 +238,16 @@ class Expr extends Term {
         return out;
     }
 
+    static String stringValue0(EvalContext context, List<Object> nodes) {
+        return nodes.size() == 1 ? stringValue(context, nodes.get(0)) : null;
+    }
+    static Number numberValue0(EvalContext context, List<Object> nodes) {
+        return nodes.size() == 1 ? numberValue(context, nodes.get(0)) : null;
+    }
+    static Boolean booleanValue0(EvalContext context, List<Object> nodes) {
+        return nodes.size() == 1 ? booleanValue(context, nodes.get(0)) : null;
+    }
+
     static String stringValue(EvalContext context, Object node) {
         if (node instanceof CharSequence) {
             return node.toString();

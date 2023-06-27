@@ -156,6 +156,9 @@ value(**/numvalue) == value(**/samenumvalue)				true
 number("1231213123213123123124124124142") > number("1231213123213123123124124124141")	true		# BigInteger test
 number("1231213123213123123124124124142") > number("1231213123213123123124124124141.9")	true		# BigDecimal test
 number("1231213123213123123124124124142") > 9999			true
+index-of(**/street, "street")						6
+string-length(**/street)						12
+substring(**/street, index-of(**/street, "street"), string-length(**/street))		"street"
 
 
 #---------------------------------------------------------------------------------------

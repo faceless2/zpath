@@ -228,7 +228,7 @@ public class Configuration {
                         try {
                             list.add((T)Class.forName(classname).getDeclaredConstructor().newInstance());
                         } catch (Throwable x) {
-                            if (!(x instanceof NoClassDefFoundError || x instanceof ClassNotFoundException || x.getCause() instanceof NoClassDefFoundError)) {
+                            if (!(x instanceof NoClassDefFoundError || x instanceof ClassNotFoundException || x.getCause() instanceof NoClassDefFoundError || x.getCause() instanceof ClassNotFoundException)) {
                                 x.printStackTrace();
                             }
                         }
@@ -793,7 +793,7 @@ public class Configuration {
                 return "encode".equals(name);
             }
             @Override public boolean verify(final String name, final List<Term> args) {
-                return args.size() <= 1;
+                return (args.size() == 1 || args.size() == 2) && args.get(0).isString();    // format must be a constant
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 StringBuilder sb = new StringBuilder();
@@ -803,6 +803,61 @@ public class Configuration {
                         Expr.encodeXML(s, true, sb);
                         out.add(sb.toString());
                         sb.setLength(0);
+                    }
+                }
+            }
+        });
+        FUNCTIONS.add(new Function() {
+            public boolean matches(String name) {
+                return "index-of".equals(name) || "last-index-of".equals(name);
+            }
+            @Override public boolean verify(final String name, final List<Term> args) {
+                return args.size() == 1 || args.size() == 2;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                String search = Expr.stringValue0(context, args.get(args.size() - 1).eval(in, new ArrayList<Object>(), context));
+                if (search != null) {
+                    for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
+                        String value = Expr.stringValue(context, node);
+                        if (value != null) {
+                            out.add("index-of".equals(name) ? value.indexOf(search) : value.lastIndexOf(search));
+                        }
+                    }
+                }
+            }
+        });
+        FUNCTIONS.add(new Function() {
+            public boolean matches(String name) {
+                return "string-length".equals(name);
+            }
+            @Override public boolean verify(final String name, final List<Term> args) {
+                return args.size() <= 1;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
+                    String value = Expr.stringValue(context, node);
+                    if (value != null) {
+                        out.add(value.length());
+                    }
+                }
+            }
+        });
+        FUNCTIONS.add(new Function() {
+            public boolean matches(String name) {
+                return "substring".equals(name);
+            }
+            @Override public boolean verify(final String name, final List<Term> args) {
+                return args.size() == 2 || args.size() == 3;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                Number off = Expr.numberValue0(context, args.get(args.size() - 2).eval(in, new ArrayList<Object>(), context));
+                Number len = Expr.numberValue0(context, args.get(args.size() - 1).eval(in, new ArrayList<Object>(), context));
+                if (off != null && len != null) {
+                    for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
+                        String value = Expr.stringValue(context, node);
+                        if (value != null) {
+                            out.add(value.substring(off.intValue(), len.intValue()));
+                        }
                     }
                 }
             }

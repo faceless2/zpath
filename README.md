@@ -106,6 +106,17 @@ nodes from the tree are required to merge duplicates first.
 | `max()` | the maximum value of all number nodes in the current **node set** (an empty set if none are numbers)|
 | `max(expression)` | the maximum of all number of nodes matched by **expression**|
 
+### String functions
+| Function | Description |
+| --- | --- |
+| `index-of(search)` | the first index in each string in the current **node set** of the specified `search` string or -1 if not found|
+| `index-of(search, expression)` | for each node matched by **expression**, the first index into each string of the `search` string|
+| `last-index-of(search)` | the last index in each string in the current **node set** of the specified `search` string or -1 if not found|
+| `last-index-of(search, expression)` | for each node matched by **expression**, the last index into each string of the `search` string|
+| `string-length()` | the length of each string in the current **node set**|
+| `string-length(expression)` | for each node matched by **expression**, if it's a string, the string's length|
+| `substring(start, length)` | a substring of each string in the current **node set**, of `length` characters starting at `start`|
+| `substring(expression, start, length)` | for each node matched by **expression**, its substring as defined above |
 
 
 ## API
