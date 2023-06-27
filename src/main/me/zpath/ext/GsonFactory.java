@@ -11,7 +11,8 @@ import com.google.gson.*;
  */
 public class GsonFactory implements EvalFactory {
     
-    public GsonFactory() {
+    public GsonFactory() throws Exception {
+        Class.forName("com.google.gson.JsonElement");
     }
 
     /** 

@@ -11,6 +11,10 @@ public class BfoJsonFactory implements EvalFactory {
     
     private static final List<Function> FUNCTIONS = new ArrayList<Function>();
 
+    public BfoJsonFactory() throws Exception {
+        Class.forName("com.bfo.json.Json");
+    }
+
     static {
         FUNCTIONS.add(new Function() {
             @Override public boolean matches(final String name) {
