@@ -184,7 +184,6 @@ public class ZTemplate {
                                         throw new IllegalArgumentException("include failed for {{" + sb + "}} at " + filepath + "line " + tmpline + ":" + tmpcolumn, e);
                                     }
                                     if (reader2 == null) {
-                                        System.out.println(uri2.toString());
                                         throw new IllegalArgumentException("include failed for {{" + sb + "}} at " + filepath + "line " + tmpline + ":" + tmpcolumn);
                                     }
                                     ZTemplate sub = ZTemplate.compile(reader2, config, uri2, depth + 1);
@@ -215,7 +214,7 @@ public class ZTemplate {
         if (sb.length() > 0) {
             cursor.add(new TemplateNode(sb.toString(), lastline, lastcol));
         }
-        cursor.dump(System.out, "");
+//        cursor.dump(System.out, "");
         return new ZTemplate(cursor, config);
     }
 
@@ -264,6 +263,7 @@ public class ZTemplate {
         int line, column;
         LineReader(Reader r) {
             super(r);
+            line = column = 1;
         }
         public int read() throws IOException {
             int c = super.read();
@@ -370,8 +370,8 @@ public class ZTemplate {
         TemplateMergingReader(ZTemplate template, Object model, EvalContext evalcontext) {
             this.template = template;
             this.evalcontext = evalcontext;
-            this.ctx = new TemplateContext(null, model, template.root, null);
             this.buf = "";
+            this.ctx = new TemplateContext(model, template.root, evalcontext, -1, null);
         }
 
         @Override public void close() throws IOException {
@@ -428,47 +428,40 @@ public class ZTemplate {
          * Fill out internal buffer. Traverses the tree and/or the iterator on the current node
          */
         private void fill() {
-            do {
-                round++;
-//                System.out.println("## CTX="+ctx);
-                if (ctx == null) {
-                    return;
-                } else if (ctx.cursor == ctx.start && ctx.children != null && ctx.index < ctx.children.size()) {
-                    ctx.model = ctx.children.get(ctx.index++);
-                    if (ctx.cursor.first() != null) {
-                        ctx.cursor = ctx.cursor.first();
-                    }
-                } else if (ctx.cursor == ctx.start && ctx.children != null) {
-                    // Iterator complete, remove ctx
-                    TemplateNode here = ctx.cursor;
-                    ctx = ctx.parent;
-                    ctx.descend = false;
-                    continue;
-                } else if (ctx.descend && ctx.cursor.first() != null) {
-                    ctx.cursor = ctx.cursor.first();
-                } else if (ctx.cursor.next() != null) {
-                    ctx.cursor = ctx.cursor.next();
-                    ctx.descend = true;
-                } else if (ctx.cursor.parent() != null) {
-                    TemplateNode c = ctx.cursor;
-                    do {
-                        c = c.parent();
-                    } while (c != ctx.start && c.next() == null);
-                    ctx.cursor = c;
-                    ctx.descend = false;
-                    continue;
-                }
-                if (ctx.cursor.parent == null) {
-                    return;
-                    // We're back at the root
-                } else if (ctx.cursor.expr == null) {
-                    buf = ctx.cursor.text;
+            // Phases:
+            // * {current=root, end=root, ctx=modelroot, p=DESCEND}
+            //
+            // if (node is childless-eval and phase=descend) {
+            //    set phase=ascend
+            //    set buf to eval string
+            // } else if (node 
+            // If we hit a childless-eval we're {current=content, end=root, ctx=modelroot, p=DESCEND}
+            //   * eval node, get the string, copy it to buf
+            //   * ctx = ctx.next() - move to next sibling, going up if need be
+            // 
+            // 1. split the current node, so we have
+            // * iterate(root, root, DESCEND)
+
+            // This is where all the template logic is.
+            // We start with a TemplateContext, which has : urrent node, halt node, model, and some context data
+            // Every time we call "next" on that node it moves to the next evaluation context - the next node in the tree.
+            // At that point
+            //  * if it's a text node, use the text
+            //  * if it's a zpath expression which evaluates as a value - {{ value }} - then substitute the value
+            //  * if it's a zpath expression which evaluates as a subtree - {{# value }} - then:
+            //    * evaluate the expression against the current context. For each value in the result
+            //      * if it is a primitive value, evaluate all children of the current node against the current context
+            //      * otherwise, evaluate all children of the current node against that value
+            // 
+            while (off == buf.length() && round++ <= template.config.getTemplateMaxIterations() && (ctx = ctx.next()) != null) {
+                // System.out.println("** NEXT: ctx="+ctx);
+                if (ctx.isText()) {
+                    // Current context is a text-constant node
+                    buf = ctx.node.text;
                     off = 0;
-                } else if (ctx.cursor.first == null) {
-                    // Node has no children; display the node value
-                    evalcontext.setContext(ctx.index - 1, ctx.children);
-                    Result result = ctx.cursor.expr.eval(ctx.model, evalcontext);
-    //                System.out.println("## EVAL: ctx="+ctx+" expr="+cursor.expr+" o="+out);
+                } else if (ctx.isExprValue()) {
+                    // Current context is an expr node with no children; evaluate as a text constant
+                    Result result = ctx.eval();
                     if (result.all().size() > 0) {
                         Object n = evalcontext.value(result.first());
                         if (n != null) {
@@ -482,43 +475,151 @@ public class ZTemplate {
                             off = 0;
                         }
                     }
-                } else {
-                    // Node has children
-                    List<Object> out = ctx.cursor.expr.eval(ctx.model).all();
-//                    System.out.println("## EVAL: ctx="+ctx+" o="+out);
-                    ctx = new TemplateContext(ctx, ctx.model, ctx.cursor, out);
+                } else if (ctx.isExprTree()) {
+                    // Current context is an expr node with children; get the result from evaluating the expression
+                    // against this context's model, then then repeat all our children once for each non-null,
+                    // non-false item in that result.
+                    //
+                    // The model for each child will either be the item in the result (if it is a tree node)
+                    // or the current context's model otherwise.
+                    Result result = ctx.eval();
+                    TemplateContext prevctx = null, nextctx = ctx;
+                    ctx.setAscending();
+                    List<Object> all = result.all();
+                    Object parentobject = ctx.model;
+                    // Build a list of TemplateContext models which evaluate our subtree, once for each item in the result. 
+                    for (int i=0;i<all.size();i++) {
+                        Object o = all.get(i);
+                        if (o == null || Boolean.FALSE.equals(o)) {
+                            // object is null or false - skip
+                        } else {
+                            TemplateContext newctx = new TemplateContext(evalcontext.isParent(o) ? o : parentobject, ctx.node(), evalcontext, i, all);
+                            if (i == 0) {
+                                ctx = newctx;
+                            }
+                            if (i + 1 == all.size()) {
+                                newctx.setNext(nextctx);
+                            }
+                            if (prevctx != null) {
+                                prevctx.setNext(newctx);
+                            }
+                            prevctx = newctx;
+                        }
+                    }
                 }
-            } while (off == buf.length() && round < template.config.getTemplateMaxIterations());
+            }
             bytecount += buf.length();
             if (bytecount > template.config.getTemplateMaxOutputSize()) {
                 throw new IllegalStateException("Maximum output size exceeded: " + bytecount);
             }
-            if (round == template.config.getTemplateMaxIterations()) {
+            if (round > template.config.getTemplateMaxIterations()) {
                 throw new IllegalStateException("Maximum iterations exceeded: " + round);
             }
         }
+    }
 
-        // Context as we travers around the TemplateNode tree.
-        // Forms a stack (it has a pointer to parent eEmplateContext)
-        private static class TemplateContext {
-            final TemplateContext parent;
-            final TemplateNode start;
-            final List<Object> children;
-            int index;
-            boolean descend;
-            TemplateNode cursor;
-            Object model; 
-            TemplateContext(TemplateContext parent, Object model, TemplateNode start, List<Object> children) {
-                this.parent = parent;
-                this.start = start;
-                this.cursor = start;
-                this.model = model;
-                this.children = children;
-                this.descend = true;
+    public static class TemplateContext {
+        private final EvalContext evalcontext;          // for evaluating any expression
+        private final int contextIndex;                 // for evaluating any expression
+        private final List<Object> contextObjects;      // for evaluating any expression
+        private final Object model;                     // for evaluating any expression
+        private TemplateNode node;                      // the current position in the tree
+        private boolean ascending;                      // will next() ascend or descend from node?
+        private final TemplateNode halt;                // if ascending and next() gets to this node, we halt
+        private TemplateContext next;                   // when this model halts, which context to continue with
+
+        /**
+         * @param model the model against which any expressions within subroot should be evaluated against
+         * @param subroot the root of this subsection of the tree
+         * @param evalcontext for evaluation of expressions
+         * @param contxtIndex for evaluation of expressions
+         * @param contextObjects for evaluation of expressions
+         */
+        TemplateContext(Object model, TemplateNode subroot, EvalContext evalcontext, int contextIndex, List<Object> contextObjects) {
+            this.model = model;
+            this.node = this.halt = subroot;
+            this.evalcontext = evalcontext;
+            this.contextIndex = contextIndex;
+            this.contextObjects = contextObjects;
+        }
+
+        /**
+         * Iterate to the next point in the tree, either in this TemplateContext or the next
+         * @return the next template context (may be this one) or null if traversal is complete
+         */
+        TemplateContext next() {
+            if (!ascending && node.first != null) {
+                node = node.first;
+            } else if (node.next != null) {   
+                node = node.next;
+                ascending = false;
+            } else if (node.parent != null) {   
+                ascending = true;
+                node = node.parent;
+            } else {
+                throw new Error();
             }
-            public String toString() {
-                return "{start="+start+" cursor="+cursor+" model="+model+" i="+(children==null?"null":index+"/"+children.size()) + " desc="+descend+"}";
+            if (node != halt) {
+                return this;
+            } else if (next == null) {
+                return null;
+            } else {
+                return next.next();
             }
+        }
+
+        /**
+         * Return the current point in the tree
+         */
+        TemplateNode node() {
+            return node;
+        }
+
+        /**
+         * Make sure in the call to next() we don't descend into node
+         */
+        void setAscending() {
+            ascending = true;
+        }
+
+        /**
+         * Set the next TemplateContext to iterate through after this one
+         */
+        void setNext(TemplateContext next) {
+            this.next = next;
+        }
+
+        /**
+         * Return true if the TemplateContext is at a text location
+         */
+        boolean isText() {
+            return node.expr == null;
+        }
+
+        /**
+         * Return true if the TemplateContext is at a point to evaluate an expression as a value
+         */
+        boolean isExprValue() {
+            return !ascending && node.expr != null && node.first == null;
+        }
+
+        /**
+         * Return true if the TemplateContext is at a point to evaluate an expression as a subtree
+         */
+        boolean isExprTree() {
+            return !ascending && node.expr != null && node.first != null;
+        }
+
+        /**
+         * Evaluate the express, return the result
+         */
+        Result eval() {
+            evalcontext.setContext(contextIndex, contextObjects);
+            return node.expr.eval(model, evalcontext);
+        }
+
+        public String toString() {
+            return "{node="+node+" halt="+halt+" ascending="+ascending+" model="+model+"}";
         }
     }
     
