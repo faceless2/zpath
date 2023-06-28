@@ -1,6 +1,7 @@
 package me.zpath;
 
 import java.util.*;
+import java.util.regex.*;
 import java.io.*;
 import java.net.*;
 import java.math.*;
@@ -13,6 +14,11 @@ public class Configuration {
 
     private static final Set<Function> FUNCTIONS = new LinkedHashSet<Function>();
     private static final Set<EvalFactory> FACTORIES = new LinkedHashSet<EvalFactory>();
+    private static final Map<String,Pattern> PATTERNCACHE = new LinkedHashMap<String,Pattern>(32, 0.75f, true) {
+        protected boolean removeEldestEntry(Map.Entry<String,Pattern> eldest) {
+            return size() > 64;
+        }
+    };
 
     private Set<EvalFactory> factories;
     private Set<Function> functions;
@@ -299,37 +305,7 @@ public class Configuration {
     static {
         FACTORIES.addAll(getServiceList(me.zpath.EvalFactory.class));
 
-        // Core: eval, union, intersection, key, index, count
-        FUNCTIONS.add(new Function() {
-            @Override public boolean matches(String name) {
-                return "eval".equals(name);
-            }
-            @Override public boolean verify(String name, List<Term> args) {
-                return args.size() == 1;
-            }
-            @Override public void eval(String name, List<Term> args, List<Object> in, List<Object> out, EvalContext context) {
-                Set<Object> seen = new HashSet<Object>();
-                Term t = args.get(0);
-                for (Object node : in) {
-                    List<Object> in1 = Collections.<Object>singletonList(node);
-                    if (t instanceof Path) {
-                        List<Object> tmp = new ArrayList<Object>();
-                        t.eval(in1, tmp, context);
-                        for (Object o : tmp) {
-                            if (seen.add(o)) {
-                                out.add(o);
-                            }
-                        }
-                    } else {
-                        t.eval(in1, out, context);
-                    }
-                }
-                if (!(t instanceof Path) && out.size() > in.size()) {
-                    // Check this to prevent abuse.
-                    throw new IllegalStateException("eval generated " + out.size() + " nodes from " + in.size() + " inputs");
-                }
-            }
-        });
+        // Core: union, intersection, key, index, count
         FUNCTIONS.add(new Function() {
             //
             // union(...)               a union of all its arguments, removing duplicates
@@ -397,6 +373,28 @@ public class Configuration {
                             out.add(s);
                         }
                     }
+                }
+            }
+        });
+        FUNCTIONS.add(new Function() {
+            //
+            // value()          return the primitive values of the current nodeset
+            // value(path)      for every node matching path, return its primitive value
+            //
+            public boolean matches(String name) {
+                return "value".equals(name);
+            }
+            public boolean verify(final String name, final List<Term> args) {
+                return args.size() <= 1;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                boolean set = false;
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
+                    Object o = context.value(node);
+                    if (o == null) {
+                        o = EvalContext.NULL;
+                    }
+                    out.add(o);
                 }
             }
         });
@@ -651,24 +649,6 @@ public class Configuration {
         });
         FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
-                return "value".equals(name);
-            }
-            public boolean verify(final String name, final List<Term> args) {
-                return args.size() <= 1;
-            }
-            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
-                boolean set = false;
-                for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
-                    Object o = context.value(node);
-                    if (o == null) {
-                        o = EvalContext.NULL;
-                    }
-                    out.add(o);
-                }
-            }
-        });
-        FUNCTIONS.add(new Function() {
-            public boolean matches(String name) {
                 return "string".equals(name);
             }
             public boolean verify(final String name, final List<Term> args) {
@@ -763,11 +743,7 @@ public class Configuration {
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 String format = args.get(0).stringValue();
                 Locale locale = context.getConfiguration().getLocale();
-                List<Object> nodes;
-                if (args.size() == 2) {
-                    in = args.get(1).eval(in, new ArrayList<Object>(), context);
-                }
-                for (Object node : in) {
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_SECOND)) {
                     String v = null;;
                     try {
                         Number n = Expr.numberValue(context, node);
@@ -862,12 +838,75 @@ public class Configuration {
                 }
             }
         });
+        FUNCTIONS.add(new Function() {
+            public boolean matches(String name) {
+                return "matches".equals(name);
+            }
+            @Override public boolean verify(final String name, final List<Term> args) {
+                if (!((args.size() == 1 || args.size() == 2) && args.get(0).isString())) {
+                    return false;
+                }
+                Pattern pattern = compilePattern(args.get(0).stringValue());
+                return true;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                Pattern pattern = compilePattern(args.get(0).stringValue());
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_SECOND)) {
+                    String value = Expr.stringValue(context, node);
+                    if (value != null) {
+                        out.add(pattern.matcher(value).find());
+                    }
+                }
+            }
+        });
+        FUNCTIONS.add(new Function() {
+            Pattern pattern;
+            public boolean matches(String name) {
+                return "replace".equals(name);
+            }
+            @Override public boolean verify(final String name, final List<Term> args) {
+                if (!((args.size() == 2 || args.size() == 3) && args.get(0).isString())) {
+                    return false;
+                }
+                Pattern pattern = compilePattern(args.get(0).stringValue());
+                return true;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                Pattern pattern = compilePattern(args.get(0).stringValue());
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_THIRD)) {
+                    String value = Expr.stringValue(context, node);
+                    if (value != null) {
+                        String replace = Expr.stringValue0(context, args.get(1).eval(in, new ArrayList<Object>(), context));
+                        if (replace == null) {
+                            replace = "";
+                        }
+                        out.add(pattern.matcher(value).replaceAll(replace));
+                    }
+                }
+            }
+        });
+    }
+
+    private static Pattern compilePattern(String string) {
+        Pattern pattern;
+        synchronized(PATTERNCACHE) {
+            pattern = PATTERNCACHE.get(string);
+        }
+        if (pattern == null) {
+            pattern = Pattern.compile(string);
+            synchronized(PATTERNCACHE) {
+                PATTERNCACHE.put(string, pattern);
+            }
+        }
+        return pattern;
     }
 
     private static final int ALLARGS = 0;               // Iterate over args only, or nothing of no args
     private static final int CONTEXT_OR_ALL = 1;        // Iterate over all args, or context if no args supplied
     private static final int ONEARGS = 2;               // Iterate over first arguent only, or nothing if no args
-    private static final int CONTEXT_OR_FIRST  = 3;     // Iterate over first argument onyl, or context if no args supplied
+    private static final int CONTEXT_OR_FIRST  = 3;     // Iterate over first argument only, or context if no args supplied
+    private static final int CONTEXT_OR_SECOND  = 4;    // Iterate over second argument only, or context if only one arg supplied
+    private static final int CONTEXT_OR_THIRD  = 5;     // Iterate over third argument only, or context if only one arg supplied
 
     /**
      * Return an iterator that will cover all nodes
@@ -875,6 +914,7 @@ public class Configuration {
      * @param allargs if true, iterate over more than one argument if supplied
      */
     private static Iterable<Object> allnodes(final List<Term> args, final List<Object> in, final EvalContext context, final int flags) {
+        // This is pretty awful
         return new Iterable<Object>() {
             public Iterator<Object> iterator() {
                 return new Iterator<Object>() {
@@ -892,10 +932,16 @@ public class Configuration {
                     }
                     private void skip() {
                         if (i == null) {
-                            if (args.isEmpty() && (flags == CONTEXT_OR_ALL || flags == CONTEXT_OR_FIRST)) {
-                                i = in.iterator();
-                            } else if (args.isEmpty()) {
-                                i = Collections.<Object>emptyList().iterator();
+                            if (args.isEmpty() || (args.size() < 2 && flags == CONTEXT_OR_SECOND) || (args.size() < 3 && flags == CONTEXT_OR_THIRD)) {
+                                if (flags == CONTEXT_OR_ALL || flags == CONTEXT_OR_FIRST || flags == CONTEXT_OR_SECOND || flags == CONTEXT_OR_THIRD) {
+                                    i = in.iterator();
+                                } else {
+                                    i = Collections.<Object>emptyList().iterator();
+                                }
+                            } else if (flags == CONTEXT_OR_SECOND) {
+                                i = args.get(1).eval(in, new ArrayList<Object>(), context).iterator();
+                            } else if (flags == CONTEXT_OR_THIRD) {
+                                i = args.get(2).eval(in, new ArrayList<Object>(), context).iterator();
                             } else {
                                 i = args.get(0).eval(in, new ArrayList<Object>(), context).iterator();
                             }

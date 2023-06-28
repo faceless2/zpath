@@ -79,7 +79,6 @@ but generally in JSON, two strings in the model with the same value are equal.
 | `value(expression)` | for each node matched by **expression**, its primitive value |
 | `type()` | the type of this node as a string|
 | `type(expression)` | the type of each node mached by **expression**, or `"undefined"` if it is an empty set|
-| `eval(expression)` | evaluate the expression and add the results to the **node set** |
 
 Types depend on the object type, and is dependent on the backing implementation. It's recommended that:
 
@@ -87,8 +86,8 @@ Types depend on the object type, and is dependent on the backing implementation.
 * CBOR has all those, and also `buffer`
 * XML has at least `element`, `text`, `processing-instruction` and `comment`
 
-The `eval(expression)` function is used in a path - for example, `item/eval(num(price) * num(quantity))` would
-return a list of numbers, each one value of the `price` * `quantity` children of each item. Functions that return
+The `value(expression)` function can be used in a path - for example, `item/value(number(price) * number(quantity))` would
+return a list of numbers, each one value of the `price` * `quantity` children of each item.
 nodes from the tree are required to merge duplicates first.
 
 
@@ -117,6 +116,10 @@ nodes from the tree are required to merge duplicates first.
 | `string-length(expression)` | for each node matched by **expression**, if it's a string, the string's length|
 | `substring(start, length)` | a substring of each string in the current **node set**, of `length` characters starting at `start`|
 | `substring(expression, start, length)` | for each node matched by **expression**, its substring as defined above |
+| `match(pattern)` | return true for each string in the current **node set** that matches the supplied regular expression |
+| `match(pattern, expression)` | for each node matched by **expression**, return true if its string matches the supplied regular expression |
+| `replace(pattern, value)` | for each string in the current **node set**, perform a regex replacement of pattern with value |
+| `replace(pattern, value, expression)` | for each node matched by **expression**, if it's a string perform a regex replacement of pattern with value |
 
 
 ## API
@@ -146,24 +149,35 @@ programmer to provide all the logic in the model.
 ZPath expressions include both logic and context, so the syntax for using them in a template can be trivial.
 
 * `{{ expression }}` will be replaced by the value of the expression
-* `{{# expression }} content {{/ expression}` will evaluate the expression then process `content` for each matching node, evaluating any nested expressions against that node.
+* `{{# expression }} content {{/ expression}` will evaluate the expression then process `content` for each matching node, changing the _evaluation context_ for any nested expressions if the node is part of the tree.
 * `{{> path }}` will include the specified template from the specified path and apply it. Include depths are limited (by default, to 3) so recursive includes will fail
 
 ```html
-<h1>{{person/name}}</h1>
-
-{{# person/items }}
-  {{# is-first() }}
-    <h2>Items: {{ count() }}</h2>
-  {{/ is-first() }}
-  Name: {{ name }}<br>
-  Price: {{ price }}<br>
-  Units: {{ units }}<br>
-  Total: {{ num(units) * num(price) }}<br>
-{{/ person/items }}
+<h1 data-name="{{ person/name }}">
+ {{ person/name }}
+</h1>
+{{# person/items/* }}
+ <p data-index="{{ index() }}">
+  <span>Name: {{ name }}</span>
+  <span>Price: {{ price }}</span>
+  {{# units > 0 }}
+   <span>Units: {{ units }}</span>
+  {{/ units > 0 }}
+ </p>
+ {{/ is-last() }}
+  <span>Total: {{ format("$02.2d", number(units) * number(price)) }}<span>
+ </p>
+ {{# is-last() }}
+  <p>Total Items: {{ count() }}</p>
+ {{/ is-first() }}
+{{/ person/items/* }}
 ```
 
 ZPath expressions can include `/` or `#` - whitespace around an expression removes any ambiguity.
+
+When evaluating an expression like `{{# expression }}`, if that expression evaluates to a _node in the tree_, then the nested content will be processed against that node.
+So each `{{ price }}` in the example above is evalated against a node from `person/items/*`. However if the expression evaluates to a _constant_ (true, false, a number, a string etc)
+then the nested content will be processed against the same context. The expression `units > 0` evaluates to a boolean constant so the evaluation context for `{{ units }}` is unchanged.
 
 ## FAQ
 

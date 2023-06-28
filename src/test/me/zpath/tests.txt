@@ -104,9 +104,6 @@ count(**)								30
 count(union(**))							23
 count(union(/**))							23
 count(union(/**/union(/**)))						23
-count(eval(**))								23
-count(eval(/**))							23
-count(eval(/**/eval(/**)))						23
 
 # Ambiguity between path and operators
 index(numbers/*[type == 'home']) == 1					true
@@ -159,6 +156,9 @@ number("1231213123213123123124124124142") > 9999			true
 index-of(**/street, "street")						6
 string-length(**/street)						12
 substring(**/street, index-of(**/street, "street"), string-length(**/street))		"street"
+**/street[matches("st[r]e")]						/address/street
+**/street/replace("(.*) street", "$1 road")				"naist road"
+replace("(.*) street", "$1 road", **/street)				"naist road"
 
 
 #---------------------------------------------------------------------------------------
@@ -248,9 +248,9 @@ count(**/tr)								3
 union(**/table,**/table,**/person)					/body/table,/body/person
 **/tr/count(td)								2,2,2
 **[@id == "tr2"]/@*							"second","tr2"
-**/items/item/eval(number(price) * number(quantity))			13.5,9			# sum of price*quantity for each item
-sum(**/items/item/eval(number(price) * number(quantity)))		22.5			# sum of price*quantity for each item
-format("$%02.2f", sum(**/items/item/eval(number(price) * number(quantity))))		"$22.50"		# sum of price*quantity for each item
+**/items/item/value(number(price) * number(quantity))			13.5,9			# sum of price*quantity for each item
+sum(**/items/item/value(number(price) * number(quantity)))		22.5			# sum of price*quantity for each item
+format("$%02.2f", sum(**/items/item/value(number(price) * number(quantity))))		"$22.50"		# sum of price*quantity for each item
 **/@*[url() == "http://www.w3.org/1999/02/22-rdf-syntax-ns#"]		"aboutvalue"
 **/@*									"tr1", "td1.1", "td1.2", "second", "tr2", "td2.1", "td2.2", "tr3", "td3.1", "td3.2", "aboutvalue", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 
