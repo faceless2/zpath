@@ -43,7 +43,8 @@ address[city == 'Nara']							/address
 **[age == 26]								/		# test an self and all descendents (finds self)
 **[city == 'Nara']							/address	# test an self and all descendents (finds child)
 /[age == 26]								/		# test on root
-/*/[city == 'Nara']							ERROR		# disallow square brace after any slash other than leading slash
+/numbers/*[type == 'iPhone']						/numbers/0
+/numbers/[type == 'iPhone']						/numbers/0
 /*[city == 'Nara']							/address     	# test on all children of root item
 /**[age == 26]								/		# test on root and all descendents (finds self)
 /**[city]								/address	# test on root and all descendents (finds child)

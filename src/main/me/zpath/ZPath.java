@@ -291,32 +291,33 @@ public class ZPath {
                 root = slash = false;
             } else if (t == Term.LBRACE) {
                 if (!first && slash && !root) {
-                    throw error(in, "bad path");
+                    // Convert /[test] to /*[test]
+                    out.add(Axis.axisKey(EvalContext.WILDCARD, Axis.ANYINDEX));
+                    sb.append("*");
+                }
+                int start = in.tell(), d = 1;
+                while ((t=in.next()) != null) {
+                    if (t == Term.LBRACE) {
+                        d++;
+                    } else if (t == Term.RBRACE) {
+                        if (--d == 0) {
+                            break;
+                        }
+                    }
+                }
+                if (d == 0) {
+                    CursorList<Term> sub = in.sub(start, in.tell() - 1);
+                    Term ex = parseExpression(sub, config);
+                    if (sub.tell() != sub.size()) {
+                        throw error(in, "expression failed");
+                    }
+                    out.add(Axis.axisMatch(ex));
+                    sb.append('[');
+                    sb.append(ex);
+                    sb.append(']');
                 } else {
-                    int start = in.tell(), d = 1;
-                    while ((t=in.next()) != null) {
-                        if (t == Term.LBRACE) {
-                            d++;
-                        } else if (t == Term.RBRACE) {
-                            if (--d == 0) {
-                                break;
-                            }
-                        }
-                    }
-                    if (d == 0) {
-                        CursorList<Term> sub = in.sub(start, in.tell() - 1);
-                        Term ex = parseExpression(sub, config);
-                        if (sub.tell() != sub.size()) {
-                            throw error(in, "expression failed");
-                        }
-                        out.add(Axis.axisMatch(ex));
-                        sb.append('[');
-                        sb.append(ex);
-                        sb.append(']');
-                    } else {
-                        in.seek(start - 1);
-                        throw error(in, "mismatched brace");
-                    }
+                    in.seek(start - 1);
+                    throw error(in, "mismatched brace");
                 }
                 slash = false;
             } else if (t == Term.SLASH) {
