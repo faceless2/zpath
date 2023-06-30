@@ -2,7 +2,7 @@
 
 A Java implementation of ZPath / ZTemplates from http://zpath.me
 
-## Zpath API
+## ZPath API
 ```java
 import me.zpath.ZPath;
 import java.util.List;
@@ -22,7 +22,7 @@ A ZPath can be compiled once and reused in multiple threads.
 * `java.util.Map` and `java.util.Collection` - traversed without reflection (tested with Jackson and Gson)
 
 
-## Ztemplate API
+## ZTemplate API
 ```java
 import me.zpath.ZTemplate;
 import java.io.Reader;
@@ -54,4 +54,49 @@ Includer includer = Includer.getDefault(new File("dir"));
 Configuration conf = new Configuration().setTemplateIncluder(includer);
 Reader reader = new InputStreamReader(new FileInputStream("dir/template.zt"), "UTF-8");
 ZTemplate template = ZTemplate.compile(reader, conf);
+```
+
+## ZPath with BFO Json
+This is a complete example, using the "multiline string" syntax from Java 15 and based
+on the "BFO Json" library from https://github.com/faceless2/json
+```java
+import com.bfo.json.Json;
+import me.zpath.ZPath;
+
+public class Test{
+ public static void main(String...args) {
+  Json json = Json.read("""
+  {
+   "person": {
+    "name": {
+     "first": "John",
+     "last": "Smith"
+    },
+    "age": 27,
+    "books": [
+     {
+      "name": "A Clockwork Orange",
+      "author": "Anthony Burgess"
+     },
+     {
+      "name": "Wolf Hall",
+      "author": "Hilary Mantel"
+     },
+     {
+      "name": "The First Man",
+      "author": "Albert Camus"
+     }
+    ]
+   }
+  }
+  """);
+
+  ZPath.compile("person/name/first").eval(json).first(); // "John"
+
+  ZPath.compile("count(person/books/*)").eval(json).first(); // 3
+
+  ZPath.compile("**/author").eval(json).all();
+    // ["Anthony Burgess", "Hilary Mantel", "Albert Camus"]
+ }
+}
 ```
