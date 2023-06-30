@@ -5,6 +5,7 @@ A Java implementation of ZPath / ZTemplates from http://zpath.me
 ## Zpath API
 ```java
 import me.zpath.ZPath;
+import java.util.List;
 
 Object context = ...;
 ZPath path = ZPath.compile("table/tr[td]");
@@ -24,15 +25,16 @@ A ZPath can be compiled once and reused in multiple threads.
 ## Ztemplate API
 ```java
 import me.zpath.ZTemplate;
+import java.io.Reader;
 
 Object context = ...;
 Reader reader = ...;
 ZTemplate template = ZTemplate.compile(reader);
-reader = template.apply(object);
+reader = template.apply(context);
 
 // Or to write to an Appendable
 Appendable out = new StringBuilder();
-template.apply(object, out);
+template.apply(context, out);
 ```
 
 A ZTemplate can be compiled once and reused in multiple threads.
@@ -46,6 +48,7 @@ file, or implement <code>me.zpath.Includer</code>
 import me.zpath.ZTemplate;
 import me.zpath.Includer;
 import me.zpath.Configuration;
+import java.io.*;
 
 Includer includer = Includer.getDefault(new File("dir"));
 Configuration conf = new Configuration().setTemplateIncluder(includer);
