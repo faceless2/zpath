@@ -40,8 +40,12 @@ easy to add if required, either using a default implementation to load from the
 file, or implement <code>me.zpath.Includer</code>
 
 ```java
-Includer includer = Includer.getDefault(new File("templatepath"));
+import me.zpath.ZTemplate;
+import me.zpath.Includer;
+import me.zpath.Configuration;
+
+Includer includer = Includer.getDefault(new File("dir"));
 Configuration conf = new Configuration().setTemplateIncluder(includer);
-Reader reader = new InputStreamReader(new FileInputStream("templatepath/template.zt"), "UTF-8");
+Reader reader = new InputStreamReader(new FileInputStream("dir/template.zt"), "UTF-8");
 ZTemplate template = ZTemplate.compile(reader, conf);
 ```
