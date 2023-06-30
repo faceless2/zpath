@@ -35,6 +35,9 @@ Appendable out = new StringBuilder();
 template.apply(object, out);
 ```
 
+A ZTemplate can be compiled once and reused in multiple threads.
+`context` can be any type of object accepted by ZPath.
+
 By default the "include" functionality is not enabled, for security, but it's
 easy to add if required, either using a default implementation to load from the
 file, or implement <code>me.zpath.Includer</code>
