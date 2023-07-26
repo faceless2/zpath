@@ -62,12 +62,16 @@ public class ZTemplate {
 
     /**
      * Return a copy of this ZTemplate that will override the Locale from the Configuration
-     * with the supplied value
+     * with the supplied value. If the supplied Locale is the same as the current locale, return this
      * @param locale the locale
+     * @return a copy of this ZTemplate with the overriden locale, or this ZTemplate if the locale is unchanged
      */
     public ZTemplate withLocale(Locale locale) {
         if (locale == null) {
             throw new IllegalArgumentException("Locale is null");
+        }
+        if (locale.equals(config.getLocale())) {
+            return this;
         }
         Configuration conf = new Configuration(config).setLocale(locale);
         return new ZTemplate(root.withConfiguration(conf), conf);
