@@ -82,18 +82,17 @@ loadScripts(document, 'script');</script>
 <div class="block"><p>
  ZPath is a syntax for traversing a structure object, like a JSON object or XML, and retrieving
  matching nodes. It's similar in concept to XPath and JSONPath and JMESPath, but with an eye
- on legibility and consistency. The specification is at <a href="https://zpath.me">zpath.me</a>
- </p><p>
- An example
+ on legibility and consistency. The specification is at <a href="https://zpath.me">zpath.me</a>.
+ An example:
  </p>
- <pre><code class="brush-java">
+ <pre>
  import me.zpath.ZPath;
  import java.util.List;
  Object context = ...;
  ZPath path = ZPath.compile("table/tr[td]");
- List<Object> match = ZPath.evaluate(context).all();  // List of zero or more matches
+ List&lt;Object&gt; match = ZPath.evaluate(context).all();  // List of zero or more matches
  Object match = ZPath.evaluate(context).first();      // The first match, or null if none
- </code></pre></div>
+ </pre></div>
 </section>
 <section class="summary">
 <ul class="summary-list">
