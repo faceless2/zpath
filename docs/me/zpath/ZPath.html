@@ -201,6 +201,10 @@ loadScripts(document, 'script');</script>
 <h3>getConfiguration</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Configuration.html" title="class in me.zpath">Configuration</a></span>&nbsp;<span class="element-name">getConfiguration</span>()</div>
 <div class="block">Return the Configuration used to compile this ZPath</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configuration</dd>
+</dl>
 </section>
 </li>
 <li>
@@ -227,6 +231,8 @@ loadScripts(document, 'script');</script>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Result.html" title="class in me.zpath">Result</a></span>&nbsp;<span class="element-name">eval</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;node)</span></div>
 <div class="block">Evaluate this ZPath against the supplied object. Calls <code>eval(object, null)</code></div>
 <dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>node</code> - the object</dd>
 <dt>Returns:</dt>
 <dd>the Result</dd>
 </dl>
@@ -249,7 +255,7 @@ loadScripts(document, 'script');</script>
  </p></div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>object</code> - the context object</dd>
+<dd><code>node</code> - the object</dd>
 <dd><code>context</code> - the context to evaluate that object in, or null to find one that matches</dd>
 <dt>Returns:</dt>
 <dd>the Result</dd>

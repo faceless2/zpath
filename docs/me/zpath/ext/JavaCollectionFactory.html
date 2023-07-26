@@ -97,7 +97,9 @@ implements <a href="../EvalFactory.html" title="interface in me.zpath">EvalFacto
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E()" class="member-name-link">JavaCollectionFactory</a>()</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">The default constructor</div>
+</div>
 </div>
 </section>
 </li>
@@ -116,7 +118,7 @@ implements <a href="../EvalFactory.html" title="interface in me.zpath">EvalFacto
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#create(java.lang.Object,me.zpath.Configuration)" class="member-name-link">create</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;o,
  <a href="../Configuration.html" title="class in me.zpath">Configuration</a>&nbsp;config)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Create a new Node, or return null if this factory doesn't apply</div>
+<div class="block">Create a new EvalContext, or return <code>null</code> if this factory doesn't apply to this type of object</div>
 </div>
 </div>
 </div>
@@ -139,6 +141,7 @@ implements <a href="../EvalFactory.html" title="interface in me.zpath">EvalFacto
 <section class="detail" id="&lt;init&gt;()">
 <h3>JavaCollectionFactory</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">JavaCollectionFactory</span>()</div>
+<div class="block">The default constructor</div>
 </section>
 </li>
 </ul>
@@ -154,12 +157,16 @@ implements <a href="../EvalFactory.html" title="interface in me.zpath">EvalFacto
 <h3>create</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../EvalContext.html" title="interface in me.zpath">EvalContext</a></span>&nbsp;<span class="element-name">create</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;o,
  <a href="../Configuration.html" title="class in me.zpath">Configuration</a>&nbsp;config)</span></div>
-<div class="block">Create a new Node, or return null if this factory doesn't apply</div>
+<div class="block"><span class="descfrm-type-label">Description copied from interface:&nbsp;<code><a href="../EvalFactory.html#create(java.lang.Object,me.zpath.Configuration)">EvalFactory</a></code></span></div>
+<div class="block">Create a new EvalContext, or return <code>null</code> if this factory doesn't apply to this type of object</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../EvalFactory.html#create(java.lang.Object,me.zpath.Configuration)">create</a></code>&nbsp;in interface&nbsp;<code><a href="../EvalFactory.html" title="interface in me.zpath">EvalFactory</a></code></dd>
 <dt>Parameters:</dt>
-<dd><code>proxy</code> - a <code>com.bfo.json</code> object</dd>
+<dd><code>o</code> - the object that will be parsed by the returned <a href="../EvalContext.html" title="interface in me.zpath"><code>EvalContext</code></a></dd>
+<dd><code>config</code> - the Configuration</dd>
+<dt>Returns:</dt>
+<dd>the EvalContext or null if the factory doesn't apply</dd>
 </dl>
 </section>
 </li>

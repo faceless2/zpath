@@ -94,7 +94,9 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code>static final <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></code></div>
 <div class="col-second even-row-color"><code><a href="#NULL" class="member-name-link">NULL</a></code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">The NULL object, which should be returned as a value when it's actually null (as opposed to just missing)</div>
+</div>
 <div class="col-first odd-row-color"><code>static final <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></code></div>
 <div class="col-second odd-row-color"><code><a href="#WILDCARD" class="member-name-link">WILDCARD</a></code></div>
 <div class="col-last odd-row-color">
@@ -168,7 +170,7 @@ loadScripts(document, 'script');</script>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#key(java.lang.Object)" class="member-name-link">key</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;o)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">If this node can be retrieved by its <a href="#parent(java.lang.Object)"><code>parent</code></a> element by a key passed to <code>#get(String)</code>,
+<div class="block">If this node can be retrieved by its <a href="#parent(java.lang.Object)"><code>parent</code></a> element by a key passed to <a href="#get(java.lang.Object,java.lang.Object)"><code>get(Object,Object)</code></a>,
  return the value of this key.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Number.html" title="class or interface in java.lang" class="external-link">Number</a></code></div>
@@ -227,6 +229,7 @@ loadScripts(document, 'script');</script>
 <section class="detail" id="NULL">
 <h3>NULL</h3>
 <div class="member-signature"><span class="modifiers">static final</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span>&nbsp;<span class="element-name">NULL</span></div>
+<div class="block">The NULL object, which should be returned as a value when it's actually null (as opposed to just missing)</div>
 </section>
 </li>
 </ul>
@@ -336,7 +339,7 @@ loadScripts(document, 'script');</script>
 <section class="detail" id="key(java.lang.Object)">
 <h3>key</h3>
 <div class="member-signature"><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span>&nbsp;<span class="element-name">key</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;o)</span></div>
-<div class="block">If this node can be retrieved by its <a href="#parent(java.lang.Object)"><code>parent</code></a> element by a key passed to <code>#get(String)</code>,
+<div class="block">If this node can be retrieved by its <a href="#parent(java.lang.Object)"><code>parent</code></a> element by a key passed to <a href="#get(java.lang.Object,java.lang.Object)"><code>get(Object,Object)</code></a>,
  return the value of this key.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
@@ -383,6 +386,12 @@ loadScripts(document, 'script');</script>
 <div class="block">Return true if the supplied object is a type of Node
  in this structure which could potentially have children;
  it's a list, map, DOM element etc.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>o</code> - the object</dd>
+<dt>Returns:</dt>
+<dd>true if the object is a potential parent, false if its a primitive object</dd>
+</dl>
 </section>
 </li>
 <li>
@@ -404,10 +413,8 @@ loadScripts(document, 'script');</script>
 <div class="member-signature"><span class="return-type"><a href="Configuration.html" title="class in me.zpath">Configuration</a></span>&nbsp;<span class="element-name">getConfiguration</span>()</div>
 <div class="block">Return the Configuration that created this EvalContext</div>
 <dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>name</code> - the function name</dd>
 <dt>Returns:</dt>
-<dd>the Function or null</dd>
+<dd>the Configuration</dd>
 </dl>
 </section>
 </li>

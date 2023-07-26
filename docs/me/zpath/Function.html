@@ -138,8 +138,10 @@ loadScripts(document, 'script');</script>
 <div class="member-signature"><span class="return-type">boolean</span>&nbsp;<span class="element-name">matches</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</span></div>
 <div class="block">Return true if the specified function name is implemented by this class</div>
 <dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>name</code> - the name to test</dd>
 <dt>Returns:</dt>
-<dd>the name</dd>
+<dd>true if this Funtion supports the name</dd>
 </dl>
 </section>
 </li>
@@ -177,7 +179,7 @@ loadScripts(document, 'script');</script>
 <dd><code>arguments</code> - the arguments to the function, which had previously been passed into <a href="#verify(java.lang.String,java.util.List)"><code>verify(java.lang.String, java.util.List&lt;me.zpath.Term&gt;)</code></a></dd>
 <dd><code>in</code> - the Nodes in the <i>input</i> context - there will be at least one node.</dd>
 <dd><code>out</code> - the Nodes which can be written to as the <i>output</i> context</dd>
-<dd><code>config</code> - the configuration, which should only be used for debug output at this point</dd>
+<dd><code>context</code> - the context</dd>
 </dl>
 </section>
 </li>

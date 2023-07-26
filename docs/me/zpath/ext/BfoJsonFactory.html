@@ -97,7 +97,9 @@ implements <a href="../EvalFactory.html" title="interface in me.zpath">EvalFacto
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E()" class="member-name-link">BfoJsonFactory</a>()</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">The default constructor</div>
+</div>
 </div>
 </section>
 </li>
@@ -140,9 +142,10 @@ implements <a href="../EvalFactory.html" title="interface in me.zpath">EvalFacto
 <h3>BfoJsonFactory</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">BfoJsonFactory</span>()
                throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Exception.html" title="class or interface in java.lang" class="external-link">Exception</a></span></div>
+<div class="block">The default constructor</div>
 <dl class="notes">
 <dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Exception.html" title="class or interface in java.lang" class="external-link">Exception</a></code></dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Exception.html" title="class or interface in java.lang" class="external-link">Exception</a></code> - if the factory can't be loaded because the <code>com.bfo.json</code> package is not available</dd>
 </dl>
 </section>
 </li>
@@ -167,6 +170,8 @@ implements <a href="../EvalFactory.html" title="interface in me.zpath">EvalFacto
 <dt>Parameters:</dt>
 <dd><code>o</code> - the object that will be parsed by the returned <a href="../EvalContext.html" title="interface in me.zpath"><code>EvalContext</code></a></dd>
 <dd><code>config</code> - the Configuration</dd>
+<dt>Returns:</dt>
+<dd>the EvalContext or null if the factory doesn't apply</dd>
 </dl>
 </section>
 </li>

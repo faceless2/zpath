@@ -105,7 +105,9 @@ loadScripts(document, 'script');</script>
 </div>
 <div class="col-first odd-row-color"><code>static final int</code></div>
 <div class="col-second odd-row-color"><code><a href="#ANYINDEX" class="member-name-link">ANYINDEX</a></code></div>
-<div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-last odd-row-color">
+<div class="block">A value that can be passed into <a href="#axisKey(java.lang.Object,int)"><code>axisKey(java.lang.Object, int)</code></a> to mean "applies to any index"</div>
+</div>
 <div class="col-first even-row-color"><code>static final <a href="Term.html" title="class in me.zpath">Term</a></code></div>
 <div class="col-second even-row-color"><code><a href="#BANG" class="member-name-link">BANG</a></code></div>
 <div class="col-last even-row-color">
@@ -334,7 +336,9 @@ loadScripts(document, 'script');</script>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#log(me.zpath.Configuration.Logger)" class="member-name-link">log</a><wbr>(<a href="Configuration.Logger.html" title="interface in me.zpath">Configuration.Logger</a>&nbsp;logger)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Write this object to the specified Logger</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Number.html" title="class or interface in java.lang" class="external-link">Number</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#numberValue()" class="member-name-link">numberValue</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -586,6 +590,7 @@ loadScripts(document, 'script');</script>
 <section class="detail" id="ANYINDEX">
 <h3>ANYINDEX</h3>
 <div class="member-signature"><span class="modifiers">static final</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">ANYINDEX</span></div>
+<div class="block">A value that can be passed into <a href="#axisKey(java.lang.Object,int)"><code>axisKey(java.lang.Object, int)</code></a> to mean "applies to any index"</div>
 <dl class="notes">
 <dt>See Also:</dt>
 <dd>
@@ -772,7 +777,7 @@ loadScripts(document, 'script');</script>
 <dt>Parameters:</dt>
 <dd><code>in</code> - the set of Objects that are the current context - will never be empty</dd>
 <dd><code>out</code> - if this Term evaluates to one or more Objects, they should be added to this collection</dd>
-<dd><code>config</code> - the configuration</dd>
+<dd><code>context</code> - the context</dd>
 </dl>
 </section>
 </li>
@@ -780,6 +785,11 @@ loadScripts(document, 'script');</script>
 <section class="detail" id="log(me.zpath.Configuration.Logger)">
 <h3>log</h3>
 <div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">log</span><wbr><span class="parameters">(<a href="Configuration.Logger.html" title="interface in me.zpath">Configuration.Logger</a>&nbsp;logger)</span></div>
+<div class="block">Write this object to the specified Logger</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>logger</code> - the logger</dd>
+</dl>
 </section>
 </li>
 </ul>
