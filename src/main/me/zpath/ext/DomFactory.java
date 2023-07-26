@@ -5,12 +5,15 @@ import org.w3c.dom.*;
 import java.util.*;
 
 /** 
- * A Node factory for the BFO Json API from <a href="https://faceless2.github.com/json">https://faceless2.github.com/json</a>
+ * A Node factory for DOM elements that subset {@link org.w3c.dom.Node org.w3c.dom.Node}
  */
 public class DomFactory implements EvalFactory {
     
     private static final List<Function> FUNCTIONS = new ArrayList<Function>();
 
+    /**
+     * The default constructor
+     */
     public DomFactory() {
         FUNCTIONS.add(new Function() {
             @Override public boolean matches(final String name) {
@@ -33,11 +36,7 @@ public class DomFactory implements EvalFactory {
         });
     }
 
-    /** 
-     * Create a new Node, or return null if this factory doesn't apply
-     * @param proxy a <code>com.bfo.json</code> object
-     */
-    public EvalContext create(Object proxy, Configuration config) {
+    @Override public EvalContext create(Object proxy, Configuration config) {
         if (proxy instanceof Node) {
             return new MyContext(config);
         }

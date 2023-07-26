@@ -48,6 +48,7 @@ public class Result {
 
     /**
      * Return the {@link EvalContext} that was used to evaluate this Result
+     * @return the context
      */
     public EvalContext context() {
         return context;
@@ -55,6 +56,7 @@ public class Result {
 
     /**
      * Return the {@link ZPath} that was evaluated to create this Result
+     * @return the zpath
      */
     public ZPath zpath() {
         return zpath;

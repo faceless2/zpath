@@ -8,14 +8,13 @@ import java.util.*;
  */
 public class JavaCollectionFactory implements EvalFactory {
     
+    /** 
+     * The default constructor
+     */
     public JavaCollectionFactory() {
     }
 
-    /** 
-     * Create a new Node, or return null if this factory doesn't apply
-     * @param proxy a <code>com.bfo.json</code> object
-     */
-    public EvalContext create(Object o, Configuration config) {
+    @Override public EvalContext create(Object o, Configuration config) {
         if (o instanceof Collection || o instanceof Map) {
             return new MyContext(config);
         }

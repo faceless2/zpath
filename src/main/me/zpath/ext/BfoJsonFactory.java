@@ -11,6 +11,10 @@ public class BfoJsonFactory implements EvalFactory {
     
     private static final List<Function> FUNCTIONS = new ArrayList<Function>();
 
+    /**
+     * The default constructor
+     * @throws Exception if the factory can't be loaded because the <code>com.bfo.json</code> package is not available
+     */
     public BfoJsonFactory() throws Exception {
         Class.forName("com.bfo.json.Json");
     }
@@ -37,7 +41,7 @@ public class BfoJsonFactory implements EvalFactory {
         });
     }
 
-    public EvalContext create(final Object o, Configuration config) {
+    @Override public EvalContext create(final Object o, Configuration config) {
         if (o instanceof Json) {
             return new MyContext(config);
         }

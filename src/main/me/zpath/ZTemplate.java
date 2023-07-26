@@ -39,9 +39,9 @@ public class ZTemplate {
 
     /**
      * Compile the ZTemplate
-     * @param path the File to read the UTF-8 encoded Template from
+     * @param file the File to read the UTF-8 encoded Template from
      * @param config the Configuration to use for the embedded ZPath expressions
-     * @throws IllegalArgumenmtException if the ZPath expressions in the template cannot be parsed
+     * @throws IllegalArgumentException if the ZPath expressions in the template cannot be parsed
      * @throws IOException if the underlying stream throws an IOException
      * @return a ZTemplate
      */
@@ -57,7 +57,7 @@ public class ZTemplate {
      * Compile the ZTemplate
      * @param reader the reader to read from
      * @param config the Configuration to use for the embedded ZPath expressions
-     * @throws IllegalArgumenmtException if the ZPath expressions in the template cannot be parsed
+     * @throws IllegalArgumentException if the ZPath expressions in the template cannot be parsed
      * @throws IOException if the underlying stream throws an IOException
      * @return a ZTemplate
      */
@@ -521,7 +521,7 @@ public class ZTemplate {
         }
     }
 
-    public static class TemplateContext {
+    private static class TemplateContext {
         private final EvalContext evalcontext;          // for evaluating any expression
         private final int contextIndex;                 // for evaluating any expression
         private final List<Object> contextObjects;      // for evaluating any expression

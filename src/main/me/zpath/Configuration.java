@@ -31,6 +31,9 @@ public class Configuration {
     private long maxbytes = 1024*1024*10;               // 10MB
     private double mindouble = 0.00000001;
 
+    /**
+     * Create a new Configuration
+     */
     public Configuration() {
         functions = new LinkedHashSet<Function>(FUNCTIONS);
         factories = new LinkedHashSet<EvalFactory>(FACTORIES);
@@ -107,6 +110,7 @@ public class Configuration {
 
     /**
      * Get the value below which two numbers are considered identical
+     * @return the minimum double 
      */
     public double getMinDouble() {
         return mindouble;
@@ -125,8 +129,9 @@ public class Configuration {
     }
 
     /**
-     * Return the maximum nuber of iterations that a ZTemplate can cycle
+     * Return the maximum number of iterations that a ZTemplate can cycle
      * for before failing.
+     * @return the described value
      */
     public int getTemplateMaxIterations() {
         return maxiterations;
@@ -256,8 +261,9 @@ public class Configuration {
         public void enter();
         /**
          * Log a string
+         * @param value the string to log
          */
-        public void log(String s);
+        public void log(String value);
         /**
          * Decrease the logging depth
          */
@@ -266,6 +272,7 @@ public class Configuration {
         /**
          * Create a default logger which logs to the specified output
          * @param out the appendable to log to
+         * @return the logger
          */
         public static Logger create(Appendable out) {
             return new DefaultLogger(out);

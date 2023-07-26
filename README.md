@@ -1,6 +1,9 @@
 # ZPath and ZTemplate
 
-A Java implementation of ZPath / ZTemplates from http://zpath.me
+A Java implementation of ZPath / ZTemplates from <a href="https://zpath.me">https://zpath.me</a>
+
+* Javadoc is always available at <a href="https://faceless2.github.com/zpath/docs/">https://faceless2.github.com/zpath/docs/</a>
+* Jar is available at <a href="https://faceless2.github.com/zpath/dist/zpath-0.1.jar">https://faceless2.github.com/zpath/dist/zpath-0.1.jar</a>
 
 ## ZPath API
 ```java
