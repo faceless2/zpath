@@ -58,6 +58,10 @@ public class ZPath {
         return compile(value, null);
     }
 
+    ZPath withConfiguration(Configuration config) {
+        return new ZPath(terms, config);
+    }
+
     /**
      * Return the hashCode for this ZPath.
      * The hashCode is derived from the value of {@link #toString}

@@ -60,6 +60,19 @@ public class ZTemplate {
         return compile(reader, config, uri, 0);
     }
 
+    /**
+     * Return a copy of this ZTemplate that will override the Locale from the Configuration
+     * with the supplied value
+     * @param locale the locale
+     */
+    public ZTemplate withLocale(Locale locale) {
+        if (locale == null) {
+            throw new IllegalArgumentException("Locale is null");
+        }
+        Configuration conf = new Configuration(config).setLocale(locale);
+        return new ZTemplate(root.withConfiguration(conf), conf);
+    }
+
     private static ZTemplate compile(Reader reader, Configuration config, URI uri, int depth) throws IOException {
         if (config == null) {
             config = new Configuration();
@@ -312,6 +325,14 @@ public class ZTemplate {
 
         TemplateNode next() {
             return next;
+        }
+
+        TemplateNode withConfiguration(Configuration conf) {
+            TemplateNode copy = new TemplateNode(text, expr == null ? null : expr.withConfiguration(conf), line, column);
+            for (TemplateNode n=first;n!=null;n=n.next) {
+                copy.add(n.withConfiguration(conf));
+            }
+            return copy;
         }
 
         void add(TemplateNode node) {
