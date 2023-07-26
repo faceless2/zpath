@@ -141,11 +141,13 @@ public class Configuration {
      * Set the maximum nuber of iterations that a ZTemplate can cycle
      * for before failing.
      * @param maxiterations the maximum iterations, which defaults to 1000000.
+     * @return this
      */
-    public void setTemplateMaxIterations(int maxiterations) {
+    public Configuration setTemplateMaxIterations(int maxiterations) {
         if (maxiterations > 0) {
             this.maxiterations = maxiterations;
         }
+        return this;
     }
 
     /**

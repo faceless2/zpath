@@ -8,24 +8,15 @@ import java.net.*;
 import java.util.*;
 
 /**
- * A ZTemplate is a template system based around ZPath. Text is read in, ZPath expressions
- * in the text are evaluated against a model and substituted into the termklate.
- * <ul>
- * <li>
- *  A ZPath expression included as
- *  <code>{{ <i>expr</i> }}</code> will be evalated and the output inserted into the code
- * </li>
- * <li>
- *  A ZPath expression included as
- *  <code>{{# <i>expr</i> }} ... {{/ <i>expr</i> }}</code> will be evaluated, and the
- *  content between the open/close tags evaluated once for each matching node.
- * </li>
- * </ul>
  * <p>
- * ZPath expressions can be surrounded in whitespace to remove ambiguity. This is necessary
- * if your expression begins with a #, eg <code>{{ #0 }}</code>.
+ * A ZTemplate is a template system based around ZPath. Text is read in, ZPath expressions
+ * in the text are evaluated against a model and substituted into the termplate.
+ * See <a href="https://zpath.me/#ztemplate">https://zpath.me/#ztemplate</a> for the
+ * specification
  * </p>
- * A ZTemplate can be compiled once and used simulteneously in multiple threads.
+ * <p>
+ * A ZTemplate object be compiled once and used simulteneously in multiple threads.
+ * </p>
  */
 public class ZTemplate {
 

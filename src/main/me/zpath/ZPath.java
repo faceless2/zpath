@@ -3,9 +3,21 @@ package me.zpath;
 import java.util.*;
 
 /**
+ * <p>
  * ZPath is a syntax for traversing a structure object, like a JSON object or XML, and retrieving
  * matching nodes. It's similar in concept to XPath and JSONPath and JMESPath, but with an eye
- * on legibility and consistency.
+ * on legibility and consistency. The specification is at <a href="https://zpath.me">zpath.me</a>
+ * </p><p>
+ * An example
+ * </p>
+ * <pre><code class="brush-java">
+ * import me.zpath.ZPath;
+ * import java.util.List;
+ * Object context = ...;
+ * ZPath path = ZPath.compile("table/tr[td]");
+ * List<Object> match = ZPath.evaluate(context).all();  // List of zero or more matches
+ * Object match = ZPath.evaluate(context).first();      // The first match, or null if none
+ * </code></pre>
  */
 public class ZPath {
 
@@ -21,6 +33,10 @@ public class ZPath {
         this.config = config;
     }
 
+    /**
+     * Return a String representation of this ZPath
+     * @return the string representation
+     */
     public String toString() {
         StringBuilder sb = new StringBuilder();
         for (int i=0;i<terms.size();i++) {
@@ -43,10 +59,21 @@ public class ZPath {
         return compile(value, null);
     }
 
+    /**
+     * Return the hashCode for this ZPath.
+     * The hashCode is derived from the value of {@link #toString}
+     * @return the hashCode
+     */
     public int hashCode() {
         return toString().hashCode();
     }
 
+    /**
+     * Return true if the supplied object is equal to this one.
+     * Two ZPaths are equal if their string representations (from {@link #toString}) are equal
+     * @param o the object to compare
+     * @return whether the object are equal
+     */
     public boolean equals(Object o) {
         return o instanceof ZPath && toString().equals(o.toString());
     }
