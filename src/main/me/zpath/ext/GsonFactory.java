@@ -11,15 +11,15 @@ import com.google.gson.*;
  */
 public class GsonFactory implements EvalFactory {
     
+    /**
+     * The default constructor
+     * @throws Exception if the factory can't be loaded because the <code>com.google.json</code> package is not available
+     */
     public GsonFactory() throws Exception {
         Class.forName("com.google.gson.JsonElement");
     }
 
-    /** 
-     * Create a new Node, or return null if this factory doesn't apply
-     * @param proxy a <code>com.bfo.json</code> object
-     */
-    public EvalContext create(Object proxy, Configuration config) {
+    @Override public EvalContext create(Object proxy, Configuration config) {
         if (proxy instanceof JsonElement) {
             return new MyContext(config);
         }

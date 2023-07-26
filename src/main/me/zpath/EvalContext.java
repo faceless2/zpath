@@ -16,6 +16,9 @@ public interface EvalContext {
      */
     public static final Object WILDCARD = "*";
 
+    /**
+     * The NULL object, which should be returned as a value when it's actually null (as opposed to just missing)
+     */
     public static final Object NULL = new Object() { public String toString() { return "NULL"; } };
 
     /**
@@ -77,7 +80,7 @@ public interface EvalContext {
     public String type(Object o);
 
     /**
-     * If this node can be retrieved by its {@link #parent parent} element by a key passed to {@link #get(String)},
+     * If this node can be retrieved by its {@link #parent parent} element by a key passed to {@link #get(Object,Object)},
      * return the value of this key.
      * @param o the node
      * @return the key by which this node is retrieved from its parent, or <code>null</code> if it can't be determined
@@ -106,6 +109,8 @@ public interface EvalContext {
      * Return true if the supplied object is a type of Node
      * in this structure which could potentially have children;
      * it's a list, map, DOM element etc.
+     * @param o the object
+     * @return true if the object is a potential parent, false if its a primitive object
      */
     public boolean isParent(Object o);
 
@@ -118,8 +123,7 @@ public interface EvalContext {
 
     /**
      * Return the Configuration that created this EvalContext
-     * @param name the function name
-     * @return the Function or null
+     * @return the Configuration
      */
     public Configuration getConfiguration();
 

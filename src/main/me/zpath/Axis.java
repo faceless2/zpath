@@ -7,7 +7,10 @@ import java.util.*;
  */
 interface Axis {
 
-    final static int ANYINDEX = -2;
+    /**
+     * A value that can be passed into {@link #axisKey} to mean "applies to any index"
+     */
+    public final static int ANYINDEX = -2;
 
     /**
      * Evaluate the set of nodes supplied in "in", move along this axis and add matching nodes to "out"
@@ -17,21 +20,25 @@ interface Axis {
      */
     List<Object> eval(List<Object> in, List<Object> out, EvalContext context);
 
+    /**
+     * Write this object to the specified Logger
+     * @param logger the logger
+     */
     default void log(Configuration.Logger logger) {
         logger.log(toString());
     }
 
     /**
-     * The "travel to a matching child of the input node" axis
-     *
+     * The "travel to a matching child of the input node" axis.
      * Several possibilities
-     *   *              (WILDCARD, ANYINDEX)    match key WILDCARD, all items
-     *   name           (name, ANYINDEX)        match key "name", all items
-     *   name#1         (name, 1)               match key "name", second item
-     *   #1             (null, 1)               match key 1
-     *   *#1            (WILDCARD, 1)           match key WILDCARD, first item
-     *   #1#2           (1, 2)                  match key 1, third item
-     *
+     * <table>
+     * <tr><th>*</th><td>(WILDCARD, ANYINDEX)</td><td>match key WILDCARD, all items</td></tr>
+     * <tr><th>name</th><td>(name, ANYINDEX)</td><td>match key "name", all items</td></tr>
+     * <tr><th>name#1</th><td>(name, 1)</td><td>match key "name", second item</td></tr>
+     * <tr><th>#1</th><td>(null, 1)</td><td>match key 1</td></tr>
+     * <tr><th>*#1</th><td>(WILDCARD, 1)</td><td>match key WILDCARD, first item</td></tr>
+     * <tr><th>#1#2</th><td>(1, 2)</td><td>match key 1, third item</td></tr>
+     * </table>
      * @param name if a name is used as part of the axis, wil
      * @hidden
      */

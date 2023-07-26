@@ -13,7 +13,9 @@ public interface Includer {
     /**
      * Return a Reader for an included file, or null if it can't be resolved
      * @param path the included path, exactly as specified in <code>{{&lt; path}}</code> 
-     * @param uri the inculded path as a URI, resolved against the root URI of the original input
+     * @param rootpath the inculded path as a URI, resolved against the root URI of the original input
+     * @throws IOException if an IOException was thrown accessing the file
+     * @return the Reader for the included file, or null if it can't be resolved
      */
     public Reader include(String path, URI rootpath) throws IOException;
 

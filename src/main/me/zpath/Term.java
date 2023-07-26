@@ -312,7 +312,7 @@ public class Term implements Axis {
      * Evaluate this Term.
      * @param in the set of Objects that are the current context - will never be empty
      * @param out if this Term evaluates to one or more Objects, they should be added to this collection
-     * @param config the configuration
+     * @param context the context
      */
     @Override public List<Object> eval(final List<Object> in, List<Object> out, EvalContext context) {
         Object n = null;

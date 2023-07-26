@@ -53,6 +53,7 @@ public class ZPath {
 
     /**
      * Return the Configuration used to compile this ZPath
+     * @return the configuration
      */
     public Configuration getConfiguration() {
         return config;
@@ -124,6 +125,7 @@ public class ZPath {
 
     /**
      * Evaluate this ZPath against the supplied object. Calls <code>eval(object, null)</code>
+     * @param node the object
      * @return the Result
      */
     public Result eval(final Object node) {
@@ -141,7 +143,7 @@ public class ZPath {
      * They will be either reachable via the {@link EvalContext} from the supplied object,
      * or String, Number, or Boolean constants if the ZPath evaluates to that type of object.
      * </p>
-     * @param object the context object
+     * @param node the object
      * @param context the context to evaluate that object in, or null to find one that matches
      * @return the Result
      */
