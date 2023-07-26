@@ -27,7 +27,9 @@
         "samenumvalue": 30,
         "list": [30, 30, 30, 30, 30, 30],
 	"nullvalue": null,
-	"falsevalue": false
+	"falsevalue": false,
+	"mediatype0": "application/pdf",
+	"mediatype1": "application/pdf;charset=utf-8"
     }
 }
 ---- END
@@ -160,6 +162,13 @@ substring(**/street, index-of(**/street, "street"), string-length(**/street))		"
 **/street[matches("st[r]e")]						/address/street
 **/street/replace("(.*) street", "$1 road")				"naist road"
 replace("(.*) street", "$1 road", **/street)				"naist road"
+replace("road$", "", replace("(.*) street", "$1 road", **/street))				"naist "
+replace("(.*) street", "$1 road", **/street)				"naist road"
+replace("road$", "", replace("(.*) street", "$1 road", **/street))				"naist "
+replace("^[^/]*/", "", replace(";.*", "", **/mediatype0))		"pdf"
+replace("^[^/]*/", "", replace(";.*", "", **/mediatype1))		"pdf"
+upper-case(replace("^[^/]*/", "", replace(";.*", "", **/mediatype1)))		"PDF"
+lower-case("PDF")		"pdf"
 
 
 #---------------------------------------------------------------------------------------

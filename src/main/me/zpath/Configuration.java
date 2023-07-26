@@ -820,6 +820,23 @@ public class Configuration {
         });
         FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
+                return "lower-case".equals(name) || "upper-case".equals(name);
+            }
+            @Override public boolean verify(final String name, final List<Term> args) {
+                return args.size() <= 1;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
+                    String value = Expr.stringValue(context, node);
+                    if (value != null) {
+                        Locale locale = context.getConfiguration().getLocale();
+                        out.add("lower-case".equals(name) ? value.toLowerCase(locale) : value.toUpperCase(locale));
+                    }
+                }
+            }
+        });
+        FUNCTIONS.add(new Function() {
+            public boolean matches(String name) {
                 return "substring".equals(name);
             }
             @Override public boolean verify(final String name, final List<Term> args) {
