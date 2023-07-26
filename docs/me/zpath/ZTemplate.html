@@ -126,6 +126,12 @@ loadScripts(document, 'script');</script>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Compile the ZTemplate</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ZTemplate.html" title="class in me.zpath">ZTemplate</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withLocale(java.util.Locale)" class="member-name-link">withLocale</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Locale.html" title="class or interface in java.util" class="external-link">Locale</a>&nbsp;locale)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return a copy of this ZTemplate that will override the Locale from the Configuration
+ with the supplied value.</div>
+</div>
 </div>
 </div>
 </div>
@@ -178,6 +184,20 @@ loadScripts(document, 'script');</script>
 <dt>Throws:</dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/IllegalArgumentException.html" title="class or interface in java.lang" class="external-link">IllegalArgumentException</a></code> - if the ZPath expressions in the template cannot be parsed</dd>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - if the underlying stream throws an IOException</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="withLocale(java.util.Locale)">
+<h3>withLocale</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ZTemplate.html" title="class in me.zpath">ZTemplate</a></span>&nbsp;<span class="element-name">withLocale</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Locale.html" title="class or interface in java.util" class="external-link">Locale</a>&nbsp;locale)</span></div>
+<div class="block">Return a copy of this ZTemplate that will override the Locale from the Configuration
+ with the supplied value. If the supplied Locale is the same as the current locale, return this</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>locale</code> - the locale</dd>
+<dt>Returns:</dt>
+<dd>a copy of this ZTemplate with the overriden locale, or this ZTemplate if the locale is unchanged</dd>
 </dl>
 </section>
 </li>
