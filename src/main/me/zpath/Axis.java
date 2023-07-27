@@ -196,6 +196,34 @@ interface Axis {
     };
 
     /**
+     * The "travel to all ancestors" axis
+     * @hidden
+     */
+    static Axis ANCESTORS = new Axis() {
+        @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
+            final Configuration.Logger logger = context.getLogger();
+            // Choice of "seen" doesn't matter; only items in it will be maps/lists etc.
+            // Identity is probably faster than Hash
+            Set<Object> seen = Collections.<Object>newSetFromMap(new IdentityHashMap<Object,Boolean>());
+            for (Object node : in) {
+                do {
+                    node = context.parent(node);
+                    if (node != null && seen.add(node)) {
+                        out.add(node);
+                        if (logger != null) {
+                            logger.log("match: " + node);
+                        }
+                    }
+                } while (node != null);
+            }
+            return out;
+        }
+        @Override public String toString() {
+            return "axis-ancestors()";
+        }
+    };
+
+    /**
      * The "travel to the root node" axis
      * @hidden
      */
