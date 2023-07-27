@@ -11,6 +11,7 @@ public class TestHarness {
 
     public static void main(String[] args) throws Exception {
         BitSet debug = new BitSet();
+        List<TestEngine> engines = new ArrayList<TestEngine>();
         for (int i=0;i<args.length;i++) {
             String s = args[i];
             if (s.equals("--debug")) {
@@ -21,14 +22,37 @@ public class TestHarness {
                         debug.set(Integer.parseInt(t));
                     }
                 }
+            } else if (s.equals("--test-xml")) {
+                engines.add(new XMLTestEngine());
+            } else if (s.equals("--test-bfo")) {
+                engines.add(new BFOTestEngine());
+            } else if (s.equals("--test-jackson")) {
+                engines.add(new JacksonTestEngine());
+            } else if (s.equals("--test-gson")) {
+                engines.add(new GsonTestEngine());
+            } else if (s.equals("--test-gson-generic")) {
+                engines.add(new GsonGenericTestEngine());
+            } else if (s.equals("--test-jsr353")) {
+                engines.add(new JSR353TestEngine());
             } else {
                 throw new IllegalArgumentException(s);
             }
         }
-        tests("tests.txt", debug, 0);
+        if (engines.isEmpty()) {
+            engines.add(new XMLTestEngine());
+            engines.add(new BFOTestEngine());
+            engines.add(new JacksonTestEngine());
+            engines.add(new GsonTestEngine());
+            engines.add(new GsonGenericTestEngine());
+            engines.add(new JSR353TestEngine());
+        }
+        for (TestEngine engine : engines) {
+            System.out.println("# Testing " + engine);
+            tests("tests.txt", debug, 0, engine);
+        }
     }
 
-    private static int tests(String name, BitSet debug, int index) throws Exception {
+    private static int tests(String name, BitSet debug, int index, TestEngine engine) throws Exception {
         BufferedReader r = new BufferedReader(new InputStreamReader(TestHarness.class.getResourceAsStream(name), "UTF-8"));
         String s, type = null;
         Object model = null;
@@ -37,10 +61,7 @@ public class TestHarness {
         while ((s=r.readLine()) != null) {
             if (type != null) {
                 if (s.equals("---- END")) {
-                    model = load(type, sb.toString());
-                    if (model == null) {
-                        throw new IllegalStateException("Unknown model type " + type);
-                    }
+                    model = engine.load(type, sb.toString());
                     type = null;
                 } else {
                     sb.append(s);
@@ -63,7 +84,7 @@ public class TestHarness {
                     ix = s.indexOf("\t");
                     if (ix < 0) {
                         throw new IllegalStateException("No tab on line " + line + ": " + s);
-                    } else {
+                    } else if (model != null) {
                         final String expression = s.substring(0, ix).trim();
                         List<Object> val;
                         if (s.endsWith("\tERROR")) {
@@ -109,7 +130,7 @@ public class TestHarness {
                                                 } catch (NumberFormatException e) {}
                                             }
                                             try {
-                                                o = child(o, key, keyindex);
+                                                o = engine.child(o, key, keyindex);
                                             } catch (Exception e) {
                                                 throw new IllegalArgumentException("Bad query on line " + line + ": \"" + t + "\" (" + key + "[" + keyindex + "])");
                                             }
@@ -172,120 +193,28 @@ public class TestHarness {
         if (ok) {
             System.out.println(String.format("%03d", index) + " OK   \"" + path + "\"");
         } else {
-            System.out.println(String.format("%03d", index) + " FAIL \"" + path + "\" expected " + expected + " got " + out + " (line " + line + ")");
+            System.out.println(String.format("%03d", index) + " FAIL \"" + path + "\" expected " + dump(expected) + " got " + dump(out) + " (line " + line + ")");
         }
         return ok;
     }
 
-    //-------------------------------------------------------------------------------------
-    // Implementation specific bits here
-    //-------------------------------------------------------------------------------------
-
-    private static Object load(String type, String data) throws Exception {
-        if (type.equals("JSON")) {
-            return com.bfo.json.Json.read(data);                                                                // BFO JSON
-//            return com.google.gson.JsonParser.parseString(data);                                                // Gson JsonParser to JsonElement
-//            return new com.google.gson.Gson().fromJson(data, com.google.gson.JsonElement.class);                // Gson JsonParser to JsonElement
-//            return new com.google.gson.Gson().fromJson(data, java.util.Map.class);                              // Gson JsonParser to Collection
-//            return new com.fasterxml.jackson.databind.ObjectMapper().readerFor(Map.class).readValue(data);      // Jackson to Collection
-        } else if (type.equals("CBOR")) {
-            return com.bfo.json.Json.read(new StringReader(data), new com.bfo.json.JsonReadOptions().setCborDiag(true));
-        } else if (type.equals("XML")) {
-            javax.xml.transform.Transformer transformer = javax.xml.transform.TransformerFactory.newInstance().newTransformer();
-            javax.xml.transform.dom.DOMResult result = new javax.xml.transform.dom.DOMResult();
-            transformer.transform(new javax.xml.transform.stream.StreamSource(new StringReader(data)), result);
-            org.w3c.dom.Node root = ((org.w3c.dom.Document)result.getNode()).getDocumentElement();
-            Stack<org.w3c.dom.Node> q = new Stack<org.w3c.dom.Node>();
-            q.push(root);
-            while (!q.isEmpty()) {
-                org.w3c.dom.Node n = q.pop();
-                if (n instanceof org.w3c.dom.Text) {
-                    String s = n.getNodeValue();
-                    boolean ok = false;
-                    for (int i=0;i<s.length();i++) {
-                        char c = s.charAt(i);
-                        if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
-                            ok = true;
-                            break;
-                        }
-                    }
-                    if (!ok) {
-                        n.getParentNode().removeChild(n);
-                    }
-                } else {
-                    for (n=n.getFirstChild();n!=null;n=n.getNextSibling()) {
-                        q.push(n);
-                    }
-                }
+    private static String dump(List<Object> l) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+        for (int i=0;i<l.size();i++) {
+            Object o = l.get(i);
+            if (i > 0) {
+                sb.append(',');
             }
-            return root;
-        }
-        return null;
-    }
-
-    /**
-     * For the supplied parent, return the specified child.
-     * @param key if not null, the access is by string, otherwise it is an indexed child
-     * @param index which matching child (zero for the first)
-     * @return the child - if a string/double/boolean/null primitive it should return the primitive
-     * @throws RuntimeException if the child is not found
-     */
-    private static Object child(Object parent, String key, int index) {
-        if (parent instanceof Map) {
-            return key != null ? ((Map)parent).get(key) : ((Map)parent).get(index);
-        } else if (parent instanceof List) {
-            return ((List)parent).get(index);
-        } else if (parent instanceof com.bfo.json.Json) {
-            com.bfo.json.Json child;
-            if (key != null) {
-                child = ((com.bfo.json.Json)parent).get(key);
+            if (o == null) {
+                sb.append("null");
             } else {
-                child = ((com.bfo.json.Json)parent).get(index);
+                sb.append(o);
+                sb.append("(" + o.getClass().getName().replaceAll("java.lang.", "") + ")");
             }
-            if (child == null) {
-                throw new RuntimeException();
-            } else if (child.isString()) {
-                return child.stringValue();
-            } else if (child.isNumber()) {
-                double d = child.doubleValue();
-                return d == (int)d ? Integer.valueOf((int)d) : Double.valueOf(d);
-            } else if (child.isBoolean()) {
-                return child.booleanValue();
-            } else {
-                return child;
-            }
-        } else if (parent instanceof org.w3c.dom.Node) {
-           for (org.w3c.dom.Node n = ((org.w3c.dom.Node)parent).getFirstChild();n!=null;n=n.getNextSibling()) {
-               if ((key == null || n instanceof org.w3c.dom.Element && n.getNodeName().equals(key)) && index-- == 0) {
-                   return n instanceof org.w3c.dom.Text ? n.getNodeValue() : n;
-               }
-           }
-            throw new RuntimeException();
-        } else if (parent instanceof com.google.gson.JsonElement) {
-           com.google.gson.JsonElement child;
-           if (key != null) {
-               child = ((com.google.gson.JsonObject)parent).get(key);
-           } else {
-               child = ((com.google.gson.JsonArray)parent).get(index);
-           }
-           if (child == null) {
-                throw new RuntimeException();
-           } else if (child.isJsonNull()) {
-               return null;
-           } else if (child.isJsonPrimitive()) {
-               com.google.gson.JsonPrimitive p = (com.google.gson.JsonPrimitive)child;
-               if (p.isString()) {
-                   return p.getAsString();
-               } else if (p.isNumber()) {
-                   return p.getAsNumber();
-               } else if (p.isBoolean()) {
-                   return p.getAsBoolean();
-               }
-           }
-           return child;
-        } else {
-            throw new RuntimeException();
         }
+        sb.append("]");
+        return sb.toString();
     }
 
 }

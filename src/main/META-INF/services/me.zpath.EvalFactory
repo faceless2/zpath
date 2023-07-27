@@ -1,4 +1,5 @@
 me.zpath.ext.BfoJsonFactory
+me.zpath.ext.JSR353Factory
 me.zpath.ext.GsonFactory
 me.zpath.ext.DomFactory
 me.zpath.ext.JavaCollectionFactory
