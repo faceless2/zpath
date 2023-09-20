@@ -284,7 +284,7 @@ class Expr extends Term {
         }
     }
 
-    static StringBuilder encodeXML(String s, boolean attribute, StringBuilder sb) {
+    static StringBuilder escapeXML(String s, boolean attribute, StringBuilder sb) {
         if (sb == null) {
             sb = new StringBuilder();
         }
@@ -314,6 +314,62 @@ class Expr extends Term {
                 sb.append(';');
             }
             i += c < 0x10000 ? 1 : 2;
+        }
+        return sb;
+    }
+
+    static StringBuilder unescapeXML(String s, StringBuilder sb) {
+        if (sb == null) {
+            sb = new StringBuilder();
+        }
+        int len = s.length();
+        for (int i=0;i<len;i++) {
+            int c = s.charAt(i);
+            if (c == '&' && i + 1 < len && ((c=s.codePointAt(i + 1)) == '#' || Character.isLetter(c))) {
+                StringBuilder t = new StringBuilder();
+                t.append((char)c);
+                i++;
+                while (i + 1 < len) {
+                    c = s.charAt(i);
+                    i++;
+                    if (c == ';') {
+                        break;
+                    }
+                }
+                if (c == ';' && s.length() > 0) {
+                    if (s.equals("lt")) {
+                        sb.append('<');
+                    } else if (s.equals("gt")) {
+                        sb.append('>');
+                    } else if (s.equals("amp")) {
+                        sb.append('&');
+                    } else if (s.equals("quot")) {
+                        sb.append('\"');
+                    } else if (s.equals("apos")) {
+                        sb.append('\'');
+                    } else if (s.length() > 1 && s.charAt(0) == '#') {
+                        c = 0;
+                        try {
+                            if (s.length() > 2 && s.charAt(1) == 'x') {
+                                c = Integer.parseInt(s, 16);
+                            } else {
+                                c = Integer.parseInt(s);
+                            }
+                        } catch (Exception e) {}
+                        if (c > 0 && c <= 0x10ffff) {
+                            sb.appendCodePoint(c);
+                            t = null;
+                            break;
+                        }
+                    }
+                }
+                if (t != null) {
+                    sb.append('&');
+                    sb.append(t);
+                }
+            } else {
+                sb.append((char)c);
+            }
         }
         return sb;
     }

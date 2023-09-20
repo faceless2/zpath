@@ -757,7 +757,11 @@ public class Configuration {
                     try {
                         Number n = Expr.numberValue(context, node);
                         if (n != null) {
-                            v = String.format(locale, format, n);
+                            try {
+                                v = String.format(locale, format, n);
+                            } catch (Exception e) {
+                                v = String.format(locale, format, n.doubleValue());
+                            }
                         } else {
                             String s = Expr.stringValue(context, node);
                             if (s != null) {
@@ -775,17 +779,36 @@ public class Configuration {
         });
         FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
-                return "encode".equals(name);
+                return "escape".equals(name);
             }
             @Override public boolean verify(final String name, final List<Term> args) {
-                return (args.size() == 1 || args.size() == 2) && args.get(0).isString();    // format must be a constant
+                return true;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 StringBuilder sb = new StringBuilder();
-                for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_ALL)) {
                     String s = Expr.stringValue(context, node);
                     if (s != null) {
-                        Expr.encodeXML(s, true, sb);
+                        Expr.escapeXML(s, true, sb);
+                        out.add(sb.toString());
+                        sb.setLength(0);
+                    }
+                }
+            }
+        });
+        FUNCTIONS.add(new Function() {
+            public boolean matches(String name) {
+                return "unescape".equals(name);
+            }
+            @Override public boolean verify(final String name, final List<Term> args) {
+                return true;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                StringBuilder sb = new StringBuilder();
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_ALL)) {
+                    String s = Expr.stringValue(context, node);
+                    if (s != null) {
+                        Expr.unescapeXML(s, sb);
                         out.add(sb.toString());
                         sb.setLength(0);
                     }

@@ -93,7 +93,7 @@ public class ZTemplate {
                 c = in.read();
                 if (c == '{') {
                     int tmpline = in.line;
-                    int tmpcolumn = in.column - 2;;
+                    int tmpcolumn = in.column - 2;
                     if (sb.length() > 0) {
                         cursor.add(new TemplateNode(sb.toString(), lastline, lastcol));
                         sb.setLength(0);
@@ -292,7 +292,7 @@ public class ZTemplate {
     private static class TemplateNode {
         final String text;
         final ZPath expr;
-        final int line, column;
+        final int line, column, escape; // escape: 0=none, 1=escape, 2=unescape
         TemplateNode first, last, next, parent;
 
         /**
@@ -317,6 +317,12 @@ public class ZTemplate {
             this.expr = expr;
             this.line = line;
             this.column = column;
+            if (expr == null) {
+                escape = 0;
+            } else {
+                String s = expr.toString();
+                escape = s.startsWith("escape(") ? 1 : s.startsWith("unescape(") ? 2 : 0;
+            }
         }
 
         TemplateNode parent() {
@@ -488,8 +494,8 @@ public class ZTemplate {
                             if (buf == null) {
                                 buf = "";
                             }
-                            if (template.config.isTemplateHTMLEscape()) {
-                                buf = Expr.encodeXML((String)buf, true, null).toString();
+                            if (template.config.isTemplateHTMLEscape() && ctx != null && ctx.node.escape == 0) {
+                                buf = Expr.escapeXML((String)buf, true, null).toString();
                             }
                             off = 0;
                         }
@@ -628,6 +634,7 @@ public class ZTemplate {
         boolean isExprTree() {
             return !ascending && node.expr != null && node.first != null;
         }
+
 
         /**
          * Evaluate the express, return the result
