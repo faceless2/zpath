@@ -423,7 +423,7 @@ public class ZTemplate {
                 }
             }
             len = Math.min(len, this.buf.length() - this.off);
-            this.buf.getChars(this.off, len, buf, off);
+            this.buf.getChars(this.off, this.off + len, buf, off);
             this.off += len;
             return len;
         }
