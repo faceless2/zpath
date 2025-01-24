@@ -199,7 +199,11 @@ public class JavaCollectionFactory implements EvalFactory {
             return o;
         }
 
-        @Override public boolean isParent(Object o) {
+        @Override public Integer compare(Object a, Object b, String test) {
+            return null;
+        }
+
+        @Override public boolean isUnique(Object o) {
             return o instanceof Collection || o instanceof Map;
         }
 

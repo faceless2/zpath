@@ -14,8 +14,8 @@ import java.util.*;
  * import java.util.List;
  * Object context = ...;
  * ZPath path = ZPath.compile("table/tr[td]");
- * List&lt;Object&gt; match = ZPath.evaluate(context).all();  // List of zero or more matches
- * Object match = ZPath.evaluate(context).first();      // The first match, or null if none
+ * List&lt;Object&gt; match = path.eval(context).all();  // List of zero or more matches
+ * Object match = path.eval(context).first();      // The first match, or null if none
  * </pre>
  */
 public class ZPath {
@@ -303,6 +303,14 @@ public class ZPath {
                     sb.append(t.toString());
                 }
                 root = slash = false;
+            } else if (t == Term.DOTDOTSTAR) {
+                if (!first && !slash) {
+                    throw error(in, "bad path");
+                } else {
+                    out.add(Axis.ANCESTORS);
+                    sb.append(t.toString());
+                }
+                root = slash = false;
             } else if (t == Term.DOT) {
                 if (!first && !slash) {
                     throw error(in, "bad path");
@@ -555,7 +563,12 @@ public class ZPath {
             } else if (c == '.') {
                 if (i + 1 < len && in.codePointAt(i + 1) == '.') {
                     i++;
-                    tokens.add(Term.DOTDOT);
+                    if (i + 1 < len && in.codePointAt(i + 1) == '*') {
+                        i++;
+                        tokens.add(Term.DOTDOTSTAR);
+                    } else {
+                        tokens.add(Term.DOTDOT);
+                    }
                 } else {
                     tokens.add(Term.DOT);
                 }

@@ -5,6 +5,9 @@ import java.util.regex.*;
 import java.io.*;
 import java.net.*;
 import java.math.*;
+import java.time.*;
+import java.time.format.*;
+import java.time.temporal.*;
 
 /**
  * The Configuration is a shared resourece which configures how ZPath expressions
@@ -757,7 +760,11 @@ public class Configuration {
                     try {
                         Number n = Expr.numberValue(context, node);
                         if (n != null) {
-                            v = String.format(locale, format, n);
+                            try {
+                                v = String.format(locale, format, n);
+                            } catch (Exception e) {
+                                v = String.format(locale, format, n.doubleValue());
+                            }
                         } else {
                             String s = Expr.stringValue(context, node);
                             if (s != null) {
@@ -775,17 +782,36 @@ public class Configuration {
         });
         FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
-                return "encode".equals(name);
+                return "escape".equals(name);
             }
             @Override public boolean verify(final String name, final List<Term> args) {
-                return (args.size() == 1 || args.size() == 2) && args.get(0).isString();    // format must be a constant
+                return true;
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 StringBuilder sb = new StringBuilder();
-                for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_ALL)) {
                     String s = Expr.stringValue(context, node);
                     if (s != null) {
-                        Expr.encodeXML(s, true, sb);
+                        Expr.escapeXML(s, true, sb);
+                        out.add(sb.toString());
+                        sb.setLength(0);
+                    }
+                }
+            }
+        });
+        FUNCTIONS.add(new Function() {
+            public boolean matches(String name) {
+                return "unescape".equals(name);
+            }
+            @Override public boolean verify(final String name, final List<Term> args) {
+                return true;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                StringBuilder sb = new StringBuilder();
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_ALL)) {
+                    String s = Expr.stringValue(context, node);
+                    if (s != null) {
+                        Expr.unescapeXML(s, sb);
                         out.add(sb.toString());
                         sb.setLength(0);
                     }
@@ -907,6 +933,79 @@ public class Configuration {
                             replace = "";
                         }
                         out.add(pattern.matcher(value).replaceAll(replace));
+                    }
+                }
+            }
+        });
+
+        FUNCTIONS.add(new Function() {
+            public boolean matches(String name) {
+                return "date-format".equals(name);
+            }
+            //a/b/format("%02d") input of one
+            //a/b[format("%02d") == "00"] input of one
+            //format("%02d", a/b) - input of two
+            public boolean verify(final String name, final List<Term> args) {
+                return (args.size() == 1 || args.size() == 2) && args.get(0).isString();    // format must be a constant
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                String format = args.get(0).stringValue();
+                Locale locale = context.getConfiguration().getLocale();
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_SECOND)) {
+                    String v = null;
+                    try {
+                        Number n = Expr.numberValue(context, node);
+                        TemporalAccessor date = null;
+                        if (n != null) {
+                            if (n.longValue() > 32504283350l) {  // Early year 3000 in ms, 12 Jan 1971 in seconds
+                                date = Instant.ofEpochMilli(n.longValue());
+                            } else {
+                                date = Instant.ofEpochSecond(n.longValue());
+                            }
+                        } else {
+                            String s = Expr.stringValue(context, node);
+                            if (s != null) {
+                                // FFS, in 2023 I still can't parse ISO8601 without hyphens/colons
+                                if (s.length() > 4 && Character.isDigit(s.charAt(4))) {
+                                    s = s.substring(0, 4) + "-" + s.substring(4);
+                                }
+                                if (s.length() > 7 && Character.isDigit(s.charAt(7))) {
+                                    s = s.substring(0, 7) + "-" + s.substring(7);
+                                }
+                                if (s.length() > 10 && s.charAt(10) != ' ') {
+                                    s = s.substring(0, 10) + " " + s.substring(10);
+                                }
+                                if (s.length() > 13 && Character.isDigit(s.charAt(13))) {
+                                    s = s.substring(0, 13) + ":" + s.substring(13);
+                                }
+                                if (s.length() > 16 && Character.isDigit(s.charAt(16))) {
+                                    s = s.substring(0, 16) + ":" + s.substring(16);
+                                }
+                                try {
+                                    if (s.length() > 16) {
+                                        date = OffsetDateTime.parse(s);
+                                    } else {
+                                        date = LocalDate.parse(s);
+                                    }
+                                } catch (Exception e) { }
+                            }
+                        }
+                        // We'll use:
+                        // y - year
+                        // M - month
+                        // d - date
+                        // H - 24hr
+                        // h - 12hr
+                        // m - minute
+                        // s - second
+                        if (date != null) {
+                            v = DateTimeFormatter.ofPattern(format, locale).format(date);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace(System.out);
+                    }
+                    if (v != null) {
+                        out.add(v);
                     }
                 }
             }

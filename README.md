@@ -3,7 +3,7 @@
 A Java implementation of ZPath / ZTemplates from <a href="https://zpath.me">https://zpath.me</a>
 
 * Javadoc is always available at <a href="https://faceless2.github.io/zpath/docs/">https://faceless2.github.io/zpath/docs/</a>
-* Jar is available at <a href="https://faceless2.github.io/zpath/dist/zpath-0.1.jar">https://faceless2.github.io/zpath/dist/zpath-0.1.jar</a>
+* Jar is available at <a href="https://faceless2.github.io/zpath/dist/zpath-0.2.jar">https://faceless2.github.io/zpath/dist/zpath-0.2.jar</a>
 
 ## ZPath API
 ```java
@@ -20,6 +20,7 @@ A ZPath can be compiled once and reused in multiple threads.
 `context` can be any type of object recognised by an `EvalFactory` registered with the implementation. The API ships with implementations for:
 
 * `org.w3c.dom.Node`
+* `javax.json` (any JSR353 implementation)
 * `com.bfo.json.Json` (see http://faceless2.github.io/json)
 * `com.google.gson.JsonElement` (see https://github.com/google/gson)
 * `java.util.Map` and `java.util.Collection` - traversed without reflection (tested with Jackson and Gson)

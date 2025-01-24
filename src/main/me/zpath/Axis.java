@@ -59,7 +59,9 @@ interface Axis {
                             n = EvalContext.NULL;
                         }
                         if (c == ANYINDEX || c-- == 0) {
-                            out.add(n);
+                            if (!context.isUnique(n) || !out.contains(n)) {
+                                out.add(n);
+                            }
                             if (logger != null) {
                                 logger.log("match: " + n);
                             }
@@ -144,7 +146,7 @@ interface Axis {
                 stack.push(node);
                 while (!stack.isEmpty()) {
                     Object n = stack.pop();
-                    if (seen == null || !context.isParent(n) || seen.add(n)) {
+                    if (seen == null || !context.isUnique(n) || seen.add(n)) {
                         out.add(n);
                         temp.clear();
                         for (Object o : context.get(n, EvalContext.WILDCARD)) {
@@ -192,6 +194,34 @@ interface Axis {
         }
         @Override public String toString() {
             return "axis-parent()";
+        }
+    };
+
+    /**
+     * The "travel to all ancestors" axis
+     * @hidden
+     */
+    static Axis ANCESTORS = new Axis() {
+        @Override public List<Object> eval(final List<Object> in, final List<Object> out, final EvalContext context) {
+            final Configuration.Logger logger = context.getLogger();
+            // Choice of "seen" doesn't matter; only items in it will be maps/lists etc.
+            // Identity is probably faster than Hash
+            Set<Object> seen = Collections.<Object>newSetFromMap(new IdentityHashMap<Object,Boolean>());
+            for (Object node : in) {
+                do {
+                    node = context.parent(node);
+                    if (node != null && seen.add(node)) {
+                        out.add(node);
+                        if (logger != null) {
+                            logger.log("match: " + node);
+                        }
+                    }
+                } while (node != null);
+            }
+            return out;
+        }
+        @Override public String toString() {
+            return "axis-ancestors()";
         }
     };
 

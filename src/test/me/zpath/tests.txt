@@ -83,6 +83,8 @@ index(numbers/#1)							1
 /..									NULL
 ..									NULL
 ../*									NULL
+/numbers/#0/number/..*							/numbers/0,/numbers,/
+..*									NULL
 index()									0
 index(..)								NULL
 count(numbers/*)							3
@@ -102,11 +104,11 @@ intersection(first, first, last)					NULL
 **/numbers/*/count(*)							2,2,2
 **/numbers/*/union(..)/*							/numbers/0,/numbers/1,/numbers/2	# duplicates removed
 count(**/union(/**)/union(/**)/union(/**)) < 50				true	# duplicates removed
-count(/**)								30
-count(**)								30
-count(union(**))							23
-count(union(/**))							23
-count(union(/**/union(/**)))						23
+count(/**)								32
+count(**)								32
+count(union(**))							25
+count(union(/**))							25
+count(union(/**/union(/**)))						25
 
 # Ambiguity between path and operators
 index(numbers/*[type == 'home']) == 1					true

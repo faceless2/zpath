@@ -42,6 +42,13 @@
     </copy>
     <jar jarfile="${jar.main}" update="false">
       <fileset dir="${classes.main}" />
+      <manifest>
+        <attribute name="Build-By" value="${user.name}/${java.version}"/>
+        <attribute name="Build-Date" value="${ISONOW}"/>
+        <attribute name="Main-Class" value="me.zpath.Main"/>
+        <attribute name="Implementation-Title" value="${ant.project.name}"/>
+        <attribute name="Implementation-Version" value="${buildversion}"/>
+      </manifest>
     </jar>
   </target>
 

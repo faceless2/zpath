@@ -70,7 +70,7 @@ class Expr extends Term {
                 node = null;
             }
             if (logger != null) {
-                logger.log(this + " eval " + name + ": value=" + node + " parentable=" + context.isParent(node));
+                logger.log(this + " eval " + name + ": value=" + node + " node=" + context.isUnique(node));
             }
         } finally {
             if (logger != null) {
@@ -195,7 +195,7 @@ class Expr extends Term {
                 } else if (op == Term.GE || op == Term.GT || op == Term.LT || op == Term.LE || op == Term.EQ || op == Term.NE) {
                     Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
                     Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
-                    double v = compare(ln, rn, context);
+                    double v = compare(ln, rn, op, context);
                     if (v > 0) {
                         result = Boolean.valueOf(op == Term.GE || op == Term.GT || op == Term.NE); 
                     } else if (v < 0) {
@@ -284,7 +284,7 @@ class Expr extends Term {
         }
     }
 
-    static StringBuilder encodeXML(String s, boolean attribute, StringBuilder sb) {
+    static StringBuilder escapeXML(String s, boolean attribute, StringBuilder sb) {
         if (sb == null) {
             sb = new StringBuilder();
         }
@@ -318,13 +318,69 @@ class Expr extends Term {
         return sb;
     }
 
+    static StringBuilder unescapeXML(String s, StringBuilder sb) {
+        if (sb == null) {
+            sb = new StringBuilder();
+        }
+        int len = s.length();
+        for (int i=0;i<len;i++) {
+            int c = s.charAt(i);
+            if (c == '&' && i + 1 < len && ((c=s.codePointAt(i + 1)) == '#' || Character.isLetter(c))) {
+                StringBuilder t = new StringBuilder();
+                t.append((char)c);
+                i++;
+                while (i + 1 < len) {
+                    c = s.charAt(i);
+                    i++;
+                    if (c == ';') {
+                        break;
+                    }
+                }
+                if (c == ';' && s.length() > 0) {
+                    if (s.equals("lt")) {
+                        sb.append('<');
+                    } else if (s.equals("gt")) {
+                        sb.append('>');
+                    } else if (s.equals("amp")) {
+                        sb.append('&');
+                    } else if (s.equals("quot")) {
+                        sb.append('\"');
+                    } else if (s.equals("apos")) {
+                        sb.append('\'');
+                    } else if (s.length() > 1 && s.charAt(0) == '#') {
+                        c = 0;
+                        try {
+                            if (s.length() > 2 && s.charAt(1) == 'x') {
+                                c = Integer.parseInt(s, 16);
+                            } else {
+                                c = Integer.parseInt(s);
+                            }
+                        } catch (Exception e) {}
+                        if (c > 0 && c <= 0x10ffff) {
+                            sb.appendCodePoint(c);
+                            t = null;
+                            break;
+                        }
+                    }
+                }
+                if (t != null) {
+                    sb.append('&');
+                    sb.append(t);
+                }
+            } else {
+                sb.append((char)c);
+            }
+        }
+        return sb;
+    }
+
     static boolean isPrimitive(Object o) {
         return o == null || o instanceof Number || o instanceof CharSequence || o instanceof Boolean;
     }
 
     // Return 0=equal, >0 = a>b, <0 = a<b, NaN a!=b
     @SuppressWarnings("unchecked")
-    static double compare(Object a, Object b, EvalContext context) {
+    static double compare(Object a, Object b, Term op, EvalContext context) {
         if (a == null && b == null) {
             return Double.NaN;
         } else if (a == null || b == null) {
@@ -358,7 +414,14 @@ class Expr extends Term {
                     return Double.NaN;
                 }
             }
-            return a.equals(b) ? 0 : Double.NaN;
+            if (a.equals(b)) {
+                return 0;
+            }
+            Integer n = context.compare(a, b, op.rawValue());
+            if (n != null) {
+                return n.doubleValue();
+            }
+            return Double.NaN;
         }
     }
 

@@ -106,13 +106,32 @@ public interface EvalContext {
     public Object value(Object o);
 
     /**
-     * Return true if the supplied object is a type of Node
-     * in this structure which could potentially have children;
-     * it's a list, map, DOM element etc.
-     * @param o the object
-     * @return true if the object is a potential parent, false if its a primitive object
+     * <p>
+     * Compare the two objects and return an integer less than, equal to or
+     * greater than zero if a is less than, equal to or greater than b.
+     * If no comparison is possible between these two objects, this method
+     * should return null.
+     * </p><p>
+     * This method is useful when a context has some sort of special type 
+     * other than numbers or string (eg a date), but for object types that
+     * don't have this concept, always returning null from this method is correct.
+     * </p>
+     * @param a the first object
+     * @param b the second object
+     * @param test the test (eg "==", "&lt;=", "&lt;"), which may be useful for some data types
+     * @return an integer or null if no comparison is possible
      */
-    public boolean isParent(Object o);
+    public Integer compare(Object a, Object b, String test);
+
+    /**
+     * Return true if the supplied object is a type of Node
+     * in this structure which should only ever be added to
+     * a result-set once. Set this for nodes which may have
+     * children.
+     * @param o the object
+     * @return true if the object is a node which should be in an output set only once, false if its a primitive object
+     */
+    public boolean isUnique(Object o);
 
     /**
      * Return the Function matching this name in this context, or null if there's no match
@@ -134,7 +153,9 @@ public interface EvalContext {
     public Configuration.Logger getLogger();
 
     /**
-     * Set the current "context" for this EvalContext
+     * Set the current "context" for this EvalContext.
+     * Implementations need to store these values so they
+     * can be retrieved, but don't need to do anything with them.
      * @param index if nodeset is not null, the index of the current node into that nodeset
      * @param nodeset the current nodeset, which may be null
      */

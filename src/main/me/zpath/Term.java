@@ -19,6 +19,8 @@ public class Term implements Axis {
     public static final Term DOT = new Term(".");
     /** The ".." Token */
     public static final Term DOTDOT = new Term("..");
+    /** The "..*" Token */
+    public static final Term DOTDOTSTAR = new Term("..*");
 
     /** The "[" Token */
     public static final Term LBRACE = new Term("[");
@@ -293,6 +295,10 @@ public class Term implements Axis {
         } else {
             throw new IllegalStateException();
         }
+    }
+
+    String rawValue() {
+        return value;
     }
 
     /**

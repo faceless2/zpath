@@ -198,7 +198,7 @@ public class BfoJsonFactory implements EvalFactory {
             return null;
         }
 
-        public Object value(Object o) {
+        @Override public Object value(Object o) {
             if (o instanceof Json) {
                 Json json = (Json)o;
                 if (json.isString()) {
@@ -214,12 +214,16 @@ public class BfoJsonFactory implements EvalFactory {
             return o;
         }
 
-        public boolean isParent(Object o) {
+        @Override public boolean isUnique(Object o) {
             if (o instanceof Json) {
                 Json json = (Json)o;
                 return json.isMap() || json.isList();
             }
             return false;
+        }
+
+        @Override public Integer compare(Object a, Object b, String test) {
+            return null;
         }
 
     }
