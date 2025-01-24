@@ -70,7 +70,7 @@ class Expr extends Term {
                 node = null;
             }
             if (logger != null) {
-                logger.log(this + " eval " + name + ": value=" + node + " parentable=" + context.isParent(node));
+                logger.log(this + " eval " + name + ": value=" + node + " node=" + context.isUnique(node));
             }
         } finally {
             if (logger != null) {
@@ -195,7 +195,7 @@ class Expr extends Term {
                 } else if (op == Term.GE || op == Term.GT || op == Term.LT || op == Term.LE || op == Term.EQ || op == Term.NE) {
                     Object ln = evalTermAsObject("lhs", lhs, node, tmp, context);
                     Object rn = evalTermAsObject("rhs", rhs, node, tmp, context);
-                    double v = compare(ln, rn, context);
+                    double v = compare(ln, rn, op, context);
                     if (v > 0) {
                         result = Boolean.valueOf(op == Term.GE || op == Term.GT || op == Term.NE); 
                     } else if (v < 0) {
@@ -380,7 +380,7 @@ class Expr extends Term {
 
     // Return 0=equal, >0 = a>b, <0 = a<b, NaN a!=b
     @SuppressWarnings("unchecked")
-    static double compare(Object a, Object b, EvalContext context) {
+    static double compare(Object a, Object b, Term op, EvalContext context) {
         if (a == null && b == null) {
             return Double.NaN;
         } else if (a == null || b == null) {
@@ -414,7 +414,14 @@ class Expr extends Term {
                     return Double.NaN;
                 }
             }
-            return a.equals(b) ? 0 : Double.NaN;
+            if (a.equals(b)) {
+                return 0;
+            }
+            Integer n = context.compare(a, b, op.rawValue());
+            if (n != null) {
+                return n.doubleValue();
+            }
+            return Double.NaN;
         }
     }
 

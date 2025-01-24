@@ -59,7 +59,9 @@ interface Axis {
                             n = EvalContext.NULL;
                         }
                         if (c == ANYINDEX || c-- == 0) {
-                            out.add(n);
+                            if (!context.isUnique(n) || !out.contains(n)) {
+                                out.add(n);
+                            }
                             if (logger != null) {
                                 logger.log("match: " + n);
                             }
@@ -144,7 +146,7 @@ interface Axis {
                 stack.push(node);
                 while (!stack.isEmpty()) {
                     Object n = stack.pop();
-                    if (seen == null || !context.isParent(n) || seen.add(n)) {
+                    if (seen == null || !context.isUnique(n) || seen.add(n)) {
                         out.add(n);
                         temp.clear();
                         for (Object o : context.get(n, EvalContext.WILDCARD)) {

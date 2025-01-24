@@ -248,8 +248,12 @@ public class DomFactory implements EvalFactory {
             return o;
         }
 
-        @Override public boolean isParent(Object o) {
+        @Override public boolean isUnique(Object o) {
             return o instanceof Element;
+        }
+
+        @Override public Integer compare(Object a, Object b, String test) {
+            return null;
         }
     }
 

@@ -297,6 +297,10 @@ public class Term implements Axis {
         }
     }
 
+    String rawValue() {
+        return value;
+    }
+
     /**
      * If this term is a string, return the value as a string
      * @return the value of the term as a string
