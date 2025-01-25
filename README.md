@@ -10,9 +10,10 @@ A Java implementation of ZPath / ZTemplates from <a href="https://zpath.me">http
 import me.zpath.ZPath;
 import java.util.List;
 
+Configuration config = new Configuration();
 Object context = ...;
-ZPath path = ZPath.compile("table/tr[td]");
-List<Object> match = ZPath.evaluate(context).all();  // List of zero or more matches
+ZPath path = ZPath.compile("table/tr[td]", config);
+List<Object> match = path.evaluate(context).all();   // List of zero or more matches
 Object match = ZPath.evaluate(context).first();      // The first match, or null if none
 ```
 
@@ -33,7 +34,8 @@ import java.io.Reader;
 
 Object context = ...;
 Reader reader = ...;
-ZTemplate template = ZTemplate.compile(reader);
+Configuration config = new Configuration();
+ZTemplate template = ZTemplate.compile(reader, config);
 reader = template.apply(context);
 
 // Or to write to an Appendable
