@@ -3,7 +3,7 @@
 A Java implementation of ZPath / ZTemplates from <a href="https://zpath.me">https://zpath.me</a>
 
 * Javadoc is always available at <a href="https://faceless2.github.io/zpath/docs/">https://faceless2.github.io/zpath/docs/</a>
-* Jar is available at <a href="https://faceless2.github.io/zpath/dist/zpath-0.2.jar">https://faceless2.github.io/zpath/dist/zpath-0.2.jar</a>
+* Jar is available at <a href="https://faceless2.github.io/zpath/dist/zpath-0.3.jar">https://faceless2.github.io/zpath/dist/zpath-0.3.jar</a>
 
 ## ZPath API
 ```java
