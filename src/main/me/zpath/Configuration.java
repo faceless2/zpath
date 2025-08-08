@@ -668,33 +668,10 @@ public class Configuration {
             }
             @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
                 for (Object node : allnodes(args, in, context, CONTEXT_OR_FIRST)) {
-                    String s = Expr.stringValue(context, node);
-                    if (s == null) {
-                        if (context.value(node) instanceof Boolean) {
-                            s = context.value(node).toString();
-                        } else {
-                            Number n = Expr.numberValue(context, node);
-                            if (n != null) {
-                                s = n.toString();
-                                // Strip trailing ".0"
-                                int ix = s.indexOf(".");
-                                if (ix > 0) {
-                                    boolean found = false;
-                                    for (int i=ix+1;i<s.length();i++) {
-                                        if (s.charAt(i) != '0') {
-                                            found = true;
-                                            break;
-                                        }
-                                    }
-                                    if (!found) {
-                                        s = s.substring(0, ix);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    String s = toStringValue(context, node);
                     if (s != null) {
                         out.add(node);
+                    } else {
                     }
                 }
             }
@@ -756,7 +733,7 @@ public class Configuration {
                 String format = args.get(0).stringValue();
                 Locale locale = context.getConfiguration().getLocale();
                 for (Object node : allnodes(args, in, context, CONTEXT_OR_SECOND)) {
-                    String v = null;;
+                    String v = null;
                     try {
                         Number n = Expr.numberValue(context, node);
                         if (n != null) {
@@ -777,6 +754,42 @@ public class Configuration {
                     if (v != null) {
                         out.add(v);
                     }
+                }
+            }
+        });
+        FUNCTIONS.add(new Function() {
+            public boolean matches(String name) {
+                return "join".equals(name);
+            }
+            //a/b/join(",") input of one
+            //a/b[format(",") == "00"] input of one
+            //join(",", a/b) - input of two
+            public boolean verify(final String name, final List<Term> args) {
+                boolean b = (args.size() == 1 || args.size() == 2) && args.get(0).isString();    // joiner must be a constant
+                return b;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                StringBuilder sb = null;
+                String joiner = null;
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_ALL)) {
+                    String s = toStringValue(context, node);
+                    if (joiner == null) {
+                        joiner = s;
+                        if (joiner == null) {
+                            throw new IllegalStateException("no joiner");
+                        }
+                    } else if (s != null) {
+                        if (sb == null) {
+                            sb = new StringBuilder();
+                            sb.append(s);
+                        } else {
+                            sb.append(joiner);
+                            sb.append(s);
+                        }
+                    }
+                }
+                if (sb != null) {
+                    out.add(sb.toString());
                 }
             }
         });
@@ -1083,6 +1096,35 @@ public class Configuration {
                 };
             }
         };
+    }
+
+    private static String toStringValue(EvalContext context, Object node) {
+        String s = Expr.stringValue(context, node);
+        if (s == null) {
+            if (context.value(node) instanceof Boolean) {
+                s = context.value(node).toString();
+            } else {
+                Number n = Expr.numberValue(context, node);
+                if (n != null) {
+                    s = n.toString();
+                    // Strip trailing ".0"
+                    int ix = s.indexOf(".");
+                    if (ix > 0) {
+                        boolean found = false;
+                        for (int i=ix+1;i<s.length();i++) {
+                            if (s.charAt(i) != '0') {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) {
+                            s = s.substring(0, ix);
+                        }
+                    }
+                }
+            }
+        }
+        return s;
     }
 
 }

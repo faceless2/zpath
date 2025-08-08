@@ -177,11 +177,14 @@ class Main {
                 transformer.transform(new javax.xml.transform.stream.StreamSource(in), result);
                 return result.getNode();
             } else if ("json".equals(format) && "bfo".equals(jsonsupport)) {
-                return com.bfo.json.Json.read(in, null);
+                // return com.bfo.json.Json.read(in, null);     // For API 1.6
+                return com.bfo.json.Json.read(in);              // For API 2.0
             } else if ("cbor".equals(format) && "bfo".equals(jsonsupport)) {
-                return com.bfo.json.Json.readCbor(in, null);
+                // return com.bfo.json.Json.readCbor(in, null); // For API 1.6
+                return com.bfo.json.Json.readCbor(in);          // For API 2.0
             } else if ("msgpack".equals(format) && "bfo".equals(jsonsupport)) {
-                return com.bfo.json.Json.readMsgpack(in, null);
+                // return com.bfo.json.Json.readMsgpack(in, null);      // For API 1.6
+                return com.bfo.json.Json.read(new com.bfo.json.MsgpackReader().setInput(in));   // For API 2.0
             } else if ("json".equals(format) && "jsr".equals(jsonsupport)) {
                 return javax.json.Json.createReader(in).read();
             } else if ("json".equals(format) && "gson".equals(jsonsupport)) {

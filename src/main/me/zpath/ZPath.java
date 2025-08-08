@@ -715,7 +715,7 @@ public class ZPath {
                     tokens.add(Term.newReal(Double.parseDouble(in.substring(start, i))));
                 }
                 i--;
-            } else if (c == '\\' || Character.isAlphabetic(c) || c == '@') {
+            } else if (c == '\\' || Character.isAlphabetic(c) || c == '@' || c == '_') {
                 StringBuilder sb = new StringBuilder();
                 for (;i<len;i++) {
                     c = in.codePointAt(i);

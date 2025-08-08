@@ -11,11 +11,13 @@
     "numbers": [
         {
             "type": "iPhone",
-            "number": "0123-4567-8888"
+            "number": "0123-4567-8888",
+            "things": [ "foo", "bar" ]
         },
         {
             "type": "home",
-            "number": "0123-4567-8910"
+            "number": "0123-4567-8910",
+            "things": [ "biff", "boff" ]
         },
         {
             "type": "work",
@@ -109,6 +111,7 @@ count(**)								32
 count(union(**))							25
 count(union(/**))							25
 count(union(/**/union(/**)))						25
+**/numbers/*[things/* == "foo"]/type					"iPhone"
 
 # Ambiguity between path and operators
 index(numbers/*[type == 'home']) == 1					true
@@ -164,13 +167,16 @@ substring(**/street, index-of(**/street, "street"), string-length(**/street))		"
 **/street[matches("st[r]e")]						/address/street
 **/street/replace("(.*) street", "$1 road")				"naist road"
 replace("(.*) street", "$1 road", **/street)				"naist road"
-replace("road$", "", replace("(.*) street", "$1 road", **/street))				"naist "
+replace("road$", "", replace("(.*) street", "$1 road", **/street))	"naist "
 replace("(.*) street", "$1 road", **/street)				"naist road"
-replace("road$", "", replace("(.*) street", "$1 road", **/street))				"naist "
+replace("road$", "", replace("(.*) street", "$1 road", **/street))			"naist "
 replace("^[^/]*/", "", replace(";.*", "", **/mediatype0))		"pdf"
 replace("^[^/]*/", "", replace(";.*", "", **/mediatype1))		"pdf"
-upper-case(replace("^[^/]*/", "", replace(";.*", "", **/mediatype1)))		"PDF"
-lower-case("PDF")		"pdf"
+upper-case(replace("^[^/]*/", "", replace(";.*", "", **/mediatype1)))	"PDF"
+lower-case("PDF")							"pdf"
+join("|", typetest/list/*)						"30|30|30|30|30|30"
+join("|", numbers/*[type == "iPhone"]/things/*)				"foo|bar"
+join("|", first)							"John"
 
 
 #---------------------------------------------------------------------------------------
