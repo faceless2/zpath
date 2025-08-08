@@ -1,13 +1,13 @@
 package me.zpath;
 
-import javax.json.*;
+import jakarta.json.*;
 import java.io.*;
 import java.util.*;
 
-class JSR353TestEngine implements TestEngine {
+class Jakarta353TestEngine implements TestEngine {
 
     public String toString() {
-        return "JSR353";
+        return "Jakarta353";
     }
 
     @Override public Object load(String type, String data) throws Exception {

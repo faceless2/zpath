@@ -13,7 +13,7 @@ class BFOTestEngine implements TestEngine {
         if (type.equals("JSON")) {
             return Json.read(data);
         } else if (type.equals("CBOR")) {
-            return Json.read(new StringReader(data), new JsonReadOptions().setCborDiag(true));
+            return Json.read(new JsonReader().setCborDiag(true).setInput(data));
         }
         return null;
     }

@@ -2,18 +2,19 @@ package me.zpath.ext;
 
 import me.zpath.*;
 import java.util.*;
-import javax.json.*;
+import jakarta.json.*;
 
 /** 
- * A EvalFactory for the JSR353 API from <a href="https://javaee.github.io/jsonp/">https://javaee.github.io/jsonp/</a>
+ * A EvalFactory for the Jakarta353 API from <a href="https://javaee.github.io/jsonp/">https://javaee.github.io/jsonp/</a>,
+ * identical to Jakarta353Factory but referencing jakarta.json not javax.json
  */
-public class JSR353Factory implements EvalFactory {
+public class Jakarta353Factory implements EvalFactory {
     
     /**
      * The default constructor
      * @throws Exception if the factory can't be loaded because the <code>javax.json.Json</code> package is not available
      */
-    public JSR353Factory() throws Exception {
+    public Jakarta353Factory() throws Exception {
         Class.forName("javax.json.Json");
     }
 
@@ -244,7 +245,7 @@ public class JSR353Factory implements EvalFactory {
         }
 
         public String toString() {
-            return "[JSR353Context]";
+            return "[Jakarta353Context]";
         }
 
     }
