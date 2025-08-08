@@ -16,9 +16,14 @@ class Main {
                 jsonsupport = "jsr";
             } catch (Throwable e2) {
                 try {
-                    Class.forName("com.google.gson.Gson");
-                    jsonsupport = "gson";
-                } catch (Throwable e3) { }
+                    Class.forName("jakarta.json.Json");
+                    jsonsupport = "jakarta";
+                } catch (Throwable e3) {
+                    try {
+                        Class.forName("com.google.gson.Gson");
+                        jsonsupport = "gson";
+                    } catch (Throwable e4) { }
+                }
             }
         }
     }
@@ -129,7 +134,11 @@ class Main {
             System.err.println("  cbor      supported (via BFO API)");
             System.err.println("  msgpack   supported (via BFO API)");
         } else if ("jsr".equals(jsonsupport)) {
-            System.err.println("  json      supported (via JSR353 API)");
+            System.err.println("  json      supported (via javax JSR353 API)");
+            System.err.println("  cbor      not supported");
+            System.err.println("  msgpack   not supported");
+        } else if ("jakarta".equals(jsonsupport)) {
+            System.err.println("  json      supported (via jakarta JSR353 API)");
             System.err.println("  cbor      not supported");
             System.err.println("  msgpack   not supported");
         } else if ("gson".equals(jsonsupport)) {
@@ -187,6 +196,8 @@ class Main {
                 return com.bfo.json.Json.read(new com.bfo.json.MsgpackReader().setInput(in));   // For API 2.0
             } else if ("json".equals(format) && "jsr".equals(jsonsupport)) {
                 return javax.json.Json.createReader(in).read();
+            } else if ("json".equals(format) && "jakarta".equals(jsonsupport)) {
+                return jakarta.json.Json.createReader(in).read();
             } else if ("json".equals(format) && "gson".equals(jsonsupport)) {
                 return new com.google.gson.Gson().fromJson(new InputStreamReader(in, "UTF-8"), com.google.gson.JsonElement.class);
             } else {

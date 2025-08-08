@@ -103,14 +103,14 @@ intersection(first, first, last)					NULL
 **/typetest[type(nullvalue) == "null"]					/typetest
 **/typetest[type(missingvalue) == "null"]				NULL
 **/typetest[type(missingvalue) == "undefined"]				/typetest
-**/numbers/*/count(*)							2,2,2
-**/numbers/*/union(..)/*							/numbers/0,/numbers/1,/numbers/2	# duplicates removed
+**/numbers/*/count(*)							3,3,2
+**/numbers/*/union(..)/*						/numbers/0,/numbers/1,/numbers/2	# duplicates removed
 count(**/union(/**)/union(/**)/union(/**)) < 50				true	# duplicates removed
-count(/**)								32
-count(**)								32
-count(union(**))							25
-count(union(/**))							25
-count(union(/**/union(/**)))						25
+count(/**)								38
+count(**)								38
+count(union(**))							31
+count(union(/**))							31
+count(union(/**/union(/**)))						31
 **/numbers/*[things/* == "foo"]/type					"iPhone"
 
 # Ambiguity between path and operators

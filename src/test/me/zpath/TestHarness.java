@@ -34,6 +34,8 @@ public class TestHarness {
                 engines.add(new GsonGenericTestEngine());
             } else if (s.equals("--test-jsr353")) {
                 engines.add(new JSR353TestEngine());
+            } else if (s.equals("--test-jakarta353")) {
+                engines.add(new Jakarta353TestEngine());
             } else {
                 throw new IllegalArgumentException(s);
             }
@@ -45,6 +47,7 @@ public class TestHarness {
             engines.add(new GsonTestEngine());
             engines.add(new GsonGenericTestEngine());
             engines.add(new JSR353TestEngine());
+            engines.add(new Jakarta353TestEngine());
         }
         for (TestEngine engine : engines) {
             System.out.println("# Testing " + engine);
@@ -132,7 +135,7 @@ public class TestHarness {
                                             try {
                                                 o = engine.child(o, key, keyindex);
                                             } catch (Exception e) {
-                                                throw new IllegalArgumentException("Bad query on line " + line + ": \"" + t + "\" (" + key + "[" + keyindex + "])");
+                                                throw (IllegalArgumentException)new IllegalArgumentException("Bad query on line " + line + ": \"" + t + "\" (" + key + "[" + keyindex + "])").initCause(e);
                                             }
                                         }
                                     }
