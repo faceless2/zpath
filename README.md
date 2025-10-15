@@ -21,7 +21,7 @@ A ZPath can be compiled once and reused in multiple threads.
 `context` can be any type of object recognised by an `EvalFactory` registered with the implementation. The API ships with implementations for:
 
 * `org.w3c.dom.Node`
-* `javax.json` (any JSR353 implementation)
+* `javax.json` or `jakarta.json` (any JSR353 implementation)
 * `com.bfo.json.Json` (see http://faceless2.github.io/json)
 * `com.google.gson.JsonElement` (see https://github.com/google/gson)
 * `java.util.Map` and `java.util.Collection` - traversed without reflection (tested with Jackson and Gson)
