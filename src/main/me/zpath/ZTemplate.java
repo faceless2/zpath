@@ -292,7 +292,7 @@ public class ZTemplate {
     private static class TemplateNode {
         final String text;
         final ZPath expr;
-        final int line, column, escape; // escape: 0=none, 1=escape, 2=unescape
+        final int line, column, escape; // escape: 0=none, 1=escape, 2=unescape, 3=literal
         TemplateNode first, last, next, parent;
 
         /**
@@ -321,7 +321,7 @@ public class ZTemplate {
                 escape = 0;
             } else {
                 String s = expr.toString();
-                escape = s.startsWith("escape(") ? 1 : s.startsWith("unescape(") ? 2 : 0;
+                escape = s.startsWith("escape(") ? 1 : s.startsWith("unescape(") ? 2 : s.startsWith("literal(") ? 3 : 0;
             }
         }
 

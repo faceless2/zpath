@@ -833,6 +833,22 @@ public class Configuration {
         });
         FUNCTIONS.add(new Function() {
             public boolean matches(String name) {
+                return "literal".equals(name);
+            }
+            @Override public boolean verify(final String name, final List<Term> args) {
+                return true;
+            }
+            @Override public void eval(final String name, List<Term> args, List<Object> in, List<Object> out, final EvalContext context) {
+                for (Object node : allnodes(args, in, context, CONTEXT_OR_ALL)) {
+                    String s = Expr.stringValue(context, node);
+                    if (s != null) {
+                        out.add(s);
+                    }
+                }
+            }
+        });
+        FUNCTIONS.add(new Function() {
+            public boolean matches(String name) {
                 return "index-of".equals(name) || "last-index-of".equals(name);
             }
             @Override public boolean verify(final String name, final List<Term> args) {
